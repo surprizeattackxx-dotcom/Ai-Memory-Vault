@@ -6,6 +6,14 @@ Walkthroughs and done-for-you AI builds I've made and shared. Free to use, share
 
 - **[Second Brain Builder](second-brain-builder.md):** turn your Obsidian vault into your AI's working memory. You run it inside Claude and it interviews you, then builds a complete, self-maintaining system: a boot config, a folder structure around your real projects, daily notes that write themselves, a profile that updates as the AI learns about you, and "Jobs" that teach it to do your recurring tasks your way. The idea: your vault becomes the AI's memory, so it lives outside the model with no size ceiling, and the AI holds only what the current task needs while reaching anything else in one step. Watch the tutorial here: https://www.youtube.com/watch?v=z9YzRqjJo4k
 
+## Templates
+
+Starter files for the Second Brain Builder system, ready to drop in and fill out. No personal info, just placeholders, and each one carries a sample vault path so the AI knows where your vault lives.
+
+- **[CLAUDE.md](templates/CLAUDE.md):** the boot config. Goes at the **root of your vault**; Claude Code auto-loads it every session. Holds your startup sequence and the rules that can't lapse.
+- **[VAULT-INDEX.md](templates/VAULT-INDEX.md):** the operating manual, also at the **vault root**. Your profile, your projects, the full vault rules, and how you like to work with the AI.
+- **[MEMORY.md](templates/MEMORY.md):** the pointer for Claude Code's own memory. Goes in **Claude Code's project folder** (`~/.claude/projects/...`, not your vault). It redirects the native memory back into the vault so you never end up with two memory layers that drift apart.
+
 ## License
 
 Copyright (c) 2026 Jared Rhodenizer.
