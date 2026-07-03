@@ -8,7 +8,9 @@ Give your AI a real, persistent memory. This is the open-source system that turn
 
 ## AI Priming
 
-The daily habit this whole system exists to power. AI Priming is having your AI read a specific set of your notes before it gives you the answer or output you want. Before my agent writes a marketing email, it reads my copywriting notes, my email marketing notes, and my customer avatar. Then it writes. Different job, different stack of notes. The vault is the library. Priming is the trip to it, and the Jobs system the build script sets up is what makes that trip automatic.
+AI Priming is having your AI read a specific set of your notes before it gives you the answer or output you want. For example, before my agent writes a marketing email, it reads my copywriting notes, my email marketing notes, my customer avatar, and my company knowledge base. Then it writes. This is extremely powerful because, with AI, context is king. When you "prime" your AI with the knowledge and skills it needs prior to its output, your results will always be better and more accurate.
+
+Every job gets its own set of notes. An email needs different notes than a Facebook ad. The vault keeps all of your notes organized in one place and tells your AI which notes to read for which job. You set that up once, and your AI primes itself on every task after that.
 
 Full definition and examples: https://jaredrhod.com/ai-priming
 
