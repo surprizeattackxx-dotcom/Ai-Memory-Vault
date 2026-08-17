@@ -1,7 +1,7 @@
 ---
 name: ai-memory-vault
 description: Complete build for an AI-operated memory vault in Obsidian. Part 1 connects the vault to Claude. Part 2 turns the AI into a setup assistant that interviews the person and builds the whole system — the boot config, the root index, the folder structure, daily notes, the living profile, the Jobs structure that lets the AI load exactly the right context for any task, and the rules that keep it self-maintaining. The vault becomes the AI's external, effectively unlimited, on-demand memory. Load as a skill into Claude and run it interactively. Do not skip phases. Do not improvise.
-version: 3.2
+version: 3.3
 author: Jared Rhodenizer (@jaredrhod)
 ---
 
@@ -17,11 +17,12 @@ You are reading a system builder file. This file contains instructions that you,
 
 This file turns you into a setup assistant. You will:
 
-1. Check whether you have write access to the person's Obsidian vault
-2. Introduce yourself and explain what's about to happen
-3. Ask the person a series of questions about their life, work, and preferences
-4. Build their entire memory vault system inside their Obsidian vault
-5. Walk them through how it works
+1. Check that Obsidian is installed, and install it for the person (with their OK) if it isn't
+2. Check whether you have write access to the person's Obsidian vault
+3. Introduce yourself and explain what's about to happen
+4. Ask the person a series of questions about their life, work, and preferences
+5. Build their entire memory vault system inside their Obsidian vault
+6. Walk them through how it works
 
 The system you build is self-maintaining. Once it's set up, every AI the person talks to reads the system file, follows the rules, and keeps the system alive without manual effort. Daily notes build themselves. The personal profile updates itself. Notes organize themselves. The person just has conversations, and the system does the rest.
 
@@ -51,10 +52,20 @@ Goal: Obsidian installed, synced, and readable/writable by Claude. Pick one conn
 
 ## Step 1 — Install Obsidian + Sync
 
-1. Download Obsidian from obsidian.md and install it.
-2. Create a new vault. Name it something personal ("Brain," "HQ," the person's name). Use the default location — do NOT put it inside iCloud if they'll use Obsidian Sync (two sync engines on one set of files causes conflicts).
-3. (Optional — skip it freely.) Obsidian Sync is a paid add-on that only syncs the vault between devices; it is NOT needed for anything in this system. The vault is plain files on your computer and the AI reads them directly. If you ever want multi-device sync later, Sync works (Settings → Core plugins → Sync; standard encryption is fine), and iCloud or a private GitHub repo do it free.
-4. Settings → Files & Links → turn ON "Automatically update internal links" so renaming a note repairs every link to it.
+If you (the AI reading this) have shell access, which is every Claude Code session, the install is YOUR job, not the person's. Check, offer, install, verify. The person should never leave the conversation to go download something.
+
+1. **Check whether Obsidian is already installed.** Do it yourself instead of asking: on macOS look for `Obsidian.app` in `/Applications` and `~/Applications`; on Windows run `winget list --id Obsidian.Obsidian`, or look for `Obsidian.exe` under `%LOCALAPPDATA%\Programs\Obsidian`; on Linux check `which obsidian`, `flatpak list`, and `snap list`. Already there? Say so and move to creating the vault.
+2. **If it's missing, install it for them.** Ask first, never silently: "You'll need Obsidian, the free app your memory system lives in. Want me to install it for you right now?" On a clear yes, use the path that fits their machine:
+   - **macOS with Homebrew** (`command -v brew` succeeds): `brew install --cask obsidian`
+   - **macOS without Homebrew:** fetch the official installer yourself. Query `https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest` for the download URL of the macOS `.dmg` asset (that is Obsidian's official distribution channel; the exact filename changes between releases, so match on `.dmg`, not a hardcoded name), download it, mount it with `hdiutil attach`, copy `Obsidian.app` from the mounted volume into `/Applications` (fall back to `~/Applications` if that write is refused), then `hdiutil detach` the volume and delete the DMG.
+   - **Windows:** `winget install --id Obsidian.Obsidian --silent --accept-package-agreements --accept-source-agreements` (winget ships with Windows 10 and 11). If winget is genuinely absent, download the installer from obsidian.md and run it.
+   - **Linux:** match their packaging: `flatpak install flathub md.obsidian.Obsidian`, or snap, or the AppImage from obsidian.md.
+
+   Then **verify it landed** (the app now exists where you looked in step 1) and open it once so the person sees it running. The first launch of a downloaded app on macOS may ask the person to click Open; that is the system being protective, not a problem.
+3. **No shell access** (Claude Desktop, claude.ai): have the person download Obsidian from obsidian.md and install it, and stay with them while they do.
+4. Create a new vault. Name it something personal ("Brain," "HQ," the person's name). Use the default location — do NOT put it inside iCloud if they'll use Obsidian Sync (two sync engines on one set of files causes conflicts).
+5. (Optional — skip it freely.) Obsidian Sync is a paid add-on that only syncs the vault between devices; it is NOT needed for anything in this system. The vault is plain files on your computer and the AI reads them directly. If you ever want multi-device sync later, Sync works (Settings → Core plugins → Sync; standard encryption is fine), and iCloud or a private GitHub repo do it free.
+6. Settings → Files & Links → turn ON "Automatically update internal links" so renaming a note repairs every link to it.
 
 ## Step 2 — Connect Claude to the vault
 
@@ -198,7 +209,7 @@ Before you create a single file, show the person exactly what you are about to m
 - an Inbox, a Daily Notes folder, a Personal folder, an Archive, and a Resources folder
 - a single Active Priorities note, your profile, and a starter Job for each recurring task you mentioned
 
-No apps get installed. No system settings get touched. Nothing leaves this folder, and nothing on your computer changes outside of it. You'll see every file appear as I create it, and you can stop me at any point. Want me to go ahead?"
+No apps get installed in this build step. No system settings get touched. Nothing leaves this folder, and nothing on your computer changes outside of it. You'll see every file appear as I create it, and you can stop me at any point. Want me to go ahead?"
 
 Wait for a clear yes before you build anything. If they want to rename a folder, drop one, or change anything, adjust first, then proceed.
 
