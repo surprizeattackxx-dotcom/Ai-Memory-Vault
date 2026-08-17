@@ -10,6 +10,8 @@ Give your AI a real, persistent memory. This is the open-source system that turn
 
 - **[ai-memory-vault.md](ai-memory-vault.md):** the build script. Run it inside Claude and it checks whether Obsidian is even installed yet (and installs it for you if not), interviews you, then builds a complete, self-maintaining system: a boot config, a folder structure around your real projects, daily notes that write themselves, a profile that updates as the AI learns about you, and "Jobs" that teach it to do your recurring tasks your way. Your vault becomes the AI's memory, so it lives outside the model with no size ceiling, and the AI holds only what the current task needs while reaching anything else in one step. Watch the walkthrough: [https://www.youtube.com/playlist?list=PLN7lTYpeRLOc](https://www.youtube.com/playlist?list=PLN7lTYpeRLOc)
 
+**Already inside a Claude Code session?** Paste this and it builds the whole system with you: *"I'd like to set this up, please: https://github.com/jaredrhod/ai-memory-vault.git"*
+
 ## AI Priming
 
 AI Priming is having your AI read a specific set of your notes before it gives you the answer or output you want. For example, before my agent writes a marketing email, it reads my copywriting notes, my email marketing notes, my customer avatar, and my company knowledge base. Then it writes. This is extremely powerful because, with AI, context is king. When you "prime" your AI with the knowledge and skills it needs prior to its output, your results will always be better and more accurate.
