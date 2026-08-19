@@ -6,6 +6,21 @@ Written for humans AND for AI assistants. If you're an AI helping someone with t
 
 Open `VAULT-INDEX.md` at the vault root: its "Vault location" section records the full path. Fresh vaults created by this system live at `~/Documents/<vault name>` on Mac and Windows alike, because Documents is pinned in the Finder and File Explorer sidebars. If the index is missing that section, Obsidian itself knows: its vault switcher lists every vault with its path.
 
+## Obsidian opened to a welcome screen instead of my vault
+
+Obsidian only opens vaults it knows about, and it learns about them from a registry file called `obsidian.json` (macOS: `~/Library/Application Support/obsidian/obsidian.json` · Windows: `%APPDATA%\Obsidian\obsidian.json` · Linux: `~/.config/obsidian/obsidian.json`). A vault created as a plain folder isn't in that registry yet, so a fresh Obsidian shows the picker. Two fixes:
+
+1. **By hand, one time:** on the welcome screen choose "Open folder as vault" and pick your vault folder (fresh installs put it at `~/Documents/<vault name>`). Obsidian remembers it from then on.
+2. **Ask your agent:** have it register the vault in `obsidian.json` with `"open": true` (Obsidian must be closed while it edits, because the app rewrites that file on quit). Current versions of the setup wizard do this automatically; hitting this screen usually means the vault was created by an older run.
+
+## My vault is NOT cloud-synced. What are my backup options?
+
+If Documents doesn't sync (the setup check tells you, or ask your agent to check), the vault exists on exactly one disk. Free options, any one of which is enough:
+
+- **Turn on cloud sync for Documents:** iCloud's "Desktop & Documents Folders" on Mac, OneDrive backup on Windows. The vault rides along automatically from then on (see the sync entry below for the two things to know).
+- **Whole-machine backup:** Time Machine (Mac) or File History (Windows) to any external drive covers the vault with everything else.
+- **A private GitHub repo:** your agent can set this up and push on a schedule. Notes are small; even years of them fit in any free account.
+
 ## My Documents folder syncs to iCloud or OneDrive. Is that a problem?
 
 Mostly it's a gift: the cloud is keeping a free, automatic backup of your agent's entire memory. Two things to know:
