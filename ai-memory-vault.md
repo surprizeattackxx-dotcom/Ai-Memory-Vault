@@ -833,6 +833,8 @@ A double-clicked `.command` launches with a bare system PATH where `claude` does
 
 **Windows (`.bat`):** `cd /d "<their working folder>"` then `claude`. Windows `.bat` files inherit the user's PATH, so no export is needed there.
 
+While you make the icon, teach the session lifecycle in two sentences: the icon (or a terminal opened in this working folder) is how the agent wakes up as itself, because the boot file only loads from this folder, and Claude Code opened anywhere else is a stranger. And a closed window loses nothing: `claude --continue` here reopens the last session mid-thought.
+
 **Do NOT set this to run at login.** An agent session opening on every boot is presumptuous, and a hidden autostart entry is exactly the shape antivirus flags. The icon is the whole feature: they double-click it when they want to talk.
 
 **This is deliberately the LAST thing you do, and the test IS the handoff.** Double-clicking the icon opens a NEW window with their agent already booted, and that window is the one they keep; anything you say after it is addressed to a session they have moved on from. So finish everything above first, then test the icon by double-clicking it WITH them. Never hand over an untested shortcut. Once the new window says hello, your job is done.
