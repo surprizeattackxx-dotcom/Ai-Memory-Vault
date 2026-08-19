@@ -28,7 +28,7 @@ The system you build is self-maintaining. Once it's set up, every AI the person 
 
 Follow each phase in order. Do not skip phases. Do not rush. This is a premium experience.
 
-This file runs in two parts. **Part 1 — Get Connected** is one-time setup: install Obsidian and wire it to Claude so you (the AI) can read and write the vault. If the person already runs Claude Code inside their vault, or already has the Obsidian MCP connected, Part 1 is done — skip to Part 2. **Part 2 — Build the System** is the interactive build you execute.
+This file runs in two parts. **Part 1 — Get Connected** is one-time setup: install Obsidian and wire it to Claude so you (the AI) can read and write the vault. Part 1 is done ONLY when Obsidian is already installed AND the vault is reachable (the person runs Claude Code inside or pointed at their vault, or the Obsidian MCP is connected). **Being in a Claude Code session proves NEITHER of those.** When in doubt, run Step 1's install check; it takes seconds and skipping it is how setups end without Obsidian. **Part 2 — Build the System** is the interactive build you execute.
 
 ---
 
@@ -50,6 +50,8 @@ Build these three things well and the AI stops being a chatbot the person re-exp
 
 Goal: Obsidian installed, synced, and readable/writable by Claude. Pick one connection path.
 
+**The rule that must not bend: Obsidian is part of the system, not an accessory.** The vault is the agent's memory, and Obsidian is how the PERSON sees, browses, and owns that memory. A folder of markdown the person never looks at is not the product. Never describe Obsidian as optional, a nice-to-have, or an add-on, and never end a setup without it installed. If it is missing, installing it (Step 1 below, with the person's OK) is part of YOUR job.
+
 ## Step 1 — Install Obsidian + Sync
 
 If you (the AI reading this) have shell access, which is every Claude Code session, the install is YOUR job, not the person's. Check, offer, install, verify. The person should never leave the conversation to go download something.
@@ -67,7 +69,7 @@ If you (the AI reading this) have shell access, which is every Claude Code sessi
    - **Vaults already exist:** name them, with locations, and offer a real choice: use one of these, or create a brand-new vault just for this system. **The fresh option is ALWAYS on the menu.** Having a vault never implies wanting to reuse it; their existing one might be recipes, a work brain, or notes they'd rather keep away from an agent.
    - **No vaults exist, or they choose fresh:** create it at **`~/Documents/<their name for it>`**. Name it something personal ("Brain," "HQ," their name). Documents on purpose: both Finder and File Explorer pin it in the sidebar, so the person can always FIND their own notes without hunting. The moment the vault exists, say the full path out loud: "your vault now lives at [path]; that is where your notes physically live on this computer." (The path gets recorded permanently in VAULT-INDEX's Vault location section during the build.)
    - **If their Documents folder syncs to iCloud or OneDrive, tell them the good news, not a warning:** that sync is a free automatic backup of their agent's whole memory. One instruction comes with it: skip Obsidian's paid Sync add-on in that case, one sync service per vault. And one optional click for belt and braces: right-click the vault folder and choose "Keep Downloaded" (Mac) or "Always keep on this device" (Windows) so the cloud never swaps their notes for internet-only placeholders. The deeper edges live in this repo's `TROUBLESHOOTING.md`.
-5. (Optional — skip it freely.) Obsidian Sync is a paid add-on that only syncs the vault between devices; it is NOT needed for anything in this system. The vault is plain files on your computer and the AI reads them directly. If you ever want multi-device sync later, Sync works (Settings → Core plugins → Sync; standard encryption is fine), and iCloud or a private GitHub repo do it free.
+5. (Optional — skip it freely.) Obsidian SYNC is a paid add-on that only syncs the vault between devices; it is NOT needed for anything in this system. (Read that carefully: SYNC is the add-on. Obsidian itself is required and already installed by now.) The vault is plain files on your computer and the AI reads them directly. If you ever want multi-device sync later, Sync works (Settings → Core plugins → Sync; standard encryption is fine), and iCloud or a private GitHub repo do it free.
 6. Settings → Files & Links → turn ON "Automatically update internal links" so renaming a note repairs every link to it.
 
 ## Step 2 — Connect Claude to the vault
@@ -115,6 +117,8 @@ Before anything else, determine whether you have write access to the person's Ob
 **If you are Claude.ai or any other interface WITHOUT vault access:** Tell the person: "I can see the blueprint but I don't have access to your Obsidian vault yet. To build your memory vault, I need to read and write files in your vault. You have two options: (1) If you use Claude Code, open your terminal inside your Obsidian vault folder and paste this file's contents, or (2) connect your Obsidian vault to Claude using an MCP server. Want me to walk you through either?" Then help them get connected before continuing. Do not proceed to Phase 2 until write access is confirmed.
 
 **To confirm access:** Try listing the root directory of the vault. If it works, tell the person you're connected and move on.
+
+**Also confirm Obsidian itself is installed** (Part 1 Step 1's check, run it yourself). If the app is missing, STOP and do Part 1's install first, with the person's OK. Building the vault without the person's window into it is an incomplete setup, even though the files would technically work: the person could never see or browse their agent's memory.
 
 **Existing vault check:** After confirming access, check if a VAULT-INDEX.md already exists at the vault root. If it does, tell the person: "It looks like you already have a memory vault set up in this vault. If I continue, I'll overwrite your existing VAULT-INDEX.md and folder structure. Want me to proceed, or back up the existing file first?" If they want a backup, copy the existing VAULT-INDEX.md to the Archive folder with a timestamped filename before proceeding.
 
