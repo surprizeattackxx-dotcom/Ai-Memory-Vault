@@ -2,6 +2,8 @@
 
 > **Never used Claude Code?** Start at [jaredrhod.com](https://jaredrhod.com): pick your situation and it routes you to the right path.
 
+**Runs on:** built and tested on Claude Code; any terminal AI that reads and writes files works with rough edges. The $20 Pro plan is enough.
+
 Give your AI a real, persistent memory. This is the open-source system that turns an Obsidian vault into your AI's working memory, so it remembers everything across sessions, lives outside the model with no size ceiling, and pulls back exactly what it needs in one step. Free to use, share, and build on, including commercially inside your own business (see LICENSE).
 
 **It also ships with my actual agent.** People kept asking whether they could just download my Jarvis instead of inventing an assistant from scratch, so now the boot config arrives with him already in it: the name, the personality, the way he talks, and the rules he runs on. Keep him as-is, keep him and change the name, or replace him with your own. Your call, and it's one section of one file either way.
