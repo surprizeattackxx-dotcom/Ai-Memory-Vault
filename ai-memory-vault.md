@@ -758,6 +758,8 @@ Walk the person through what was built, in plain language:
 5. **Active Priorities** — "One list, everything open, tagged by project. Finish something and I archive it."
 6. **Jobs** *(if built)* — "For the work you do over and over, I have a master note per job. I read one note and I've got the whole skill plus exactly the context it needs. Every correction you give makes that job sharper."
 
+Also tell them how updates work, in one line: the system itself is finished the moment it's built, but the repo's templates and wizard keep improving, and if they kept a copy of the repo, "pull the latest ai-memory-vault and tell me what changed" fetches those improvements without ever touching their vault or their notes.
+
 Then: "Your memory vault is live. From now on, every conversation with an AI that can reach this vault starts by reading it. It knows you, follows the rules, and keeps itself alive. You just have conversations."
 
 ### Connecting Your Other AIs
