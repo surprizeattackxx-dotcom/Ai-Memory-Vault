@@ -4,7 +4,7 @@
 
 **Runs on:** built and tested on Claude Code; any terminal AI that reads and writes files works with rough edges. The $20 Pro plan is enough.
 
-Give your AI a real, persistent memory. This is the open-source system that turns an Obsidian vault into your AI's working memory, so it remembers everything across sessions, lives outside the model with no size ceiling, and pulls back exactly what it needs in one step. Free to use, share, and build on, including commercially inside your own business (see LICENSE).
+Give your AI a real, persistent memory. This is the free, open system that turns an Obsidian vault into your AI's working memory, so it remembers everything across sessions, lives outside the model with no size ceiling, and pulls back exactly what it needs in one step. Free to use, share, and build on, including commercially inside your own business (see LICENSE).
 
 **It also ships with my actual agent.** People kept asking whether they could just download my Jarvis instead of inventing an assistant from scratch, so now the boot config arrives with him already in it: the name, the personality, the way he talks, and the rules he runs on. Keep him as-is, keep him and change the name, or replace him with your own. Your call, and it's one section of one file either way.
 
@@ -42,7 +42,7 @@ A mind is better with a mouth, a face, and hands. Once your agent remembers you,
 - **The whole stack, one command.** [fullstack-agent](https://github.com/jaredrhod/fullstack-agent) installs the memory, the voice, the face, and the hands, and wires them together for you. Pick only the pieces you want: https://jaredrhod.com
 - **The videos.** Free series on all of it: https://youtube.com/@jaredrhod
 - **The Discord.** Thousands of builders, and the fastest place to get unstuck: https://discord.gg/YSdsqMv3V8
-- **Everything else,** free and open source: https://jaredrhod.com
+- **Everything else,** free and open: https://jaredrhod.com
 
 ## Support
 
