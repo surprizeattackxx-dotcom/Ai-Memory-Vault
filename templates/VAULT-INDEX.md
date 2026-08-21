@@ -15,7 +15,7 @@ Read this file at the start of every conversation. It has two jobs: **the profil
 
 ## Vault location
 
-This vault lives at `[FILL IN: your vault's full path — e.g. /Users/you/Documents/Brain on Mac, C:\Users\you\Documents\Brain on Windows]`. If you use Claude Desktop, claude.ai, or any AI other than Claude Code, you have to point it at this path (set it in your MCP / filesystem connector, and tell the AI "my vault is here"). An AI can't read or maintain a vault it can't find.
+This vault lives at `[FILL IN: your vault's full path — e.g. /Users/you/Brain on Mac, C:\Users\you\Brain on Windows]`. If you use Claude Desktop, claude.ai, or any AI other than Claude Code, you have to point it at this path (set it in your MCP / filesystem connector, and tell the AI "my vault is here"). An AI can't read or maintain a vault it can't find.
 
 ---
 

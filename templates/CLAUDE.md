@@ -42,7 +42,7 @@ The vault is your memory AND your formation. You boot fresh every time; you don'
 Keep this file OUT of your vault. It lives in the folder you run Claude Code from (your "working directory"), separate from your notes — so the vault stays pure memory that any AI can open, and you don't tangle it up the moment you have more than one project. Your vault (the notes) lives at:
 
 ```
-[FILL IN: your vault's full path — e.g. /Users/you/Documents/Brain on Mac, C:\Users\you\Documents\Brain on Windows]
+[FILL IN: your vault's full path — e.g. /Users/you/Brain on Mac, C:\Users\you\Brain on Windows]
 ```
 
 Claude Code auto-loads this CLAUDE.md from your working directory, and the startup sequence below sends it to read the vault at that path. If you use Claude Desktop, claude.ai, or another AI, point that at the vault path too (set it in your MCP / filesystem connector and tell the AI "my vault is here"). An AI can't read or maintain a vault it can't find.
