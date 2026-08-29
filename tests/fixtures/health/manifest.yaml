@@ -1,0 +1,177 @@
+# Machine-checkable expectations for tools/audit_health_coverage.py behavior.
+#
+# Each fixture vault is built by build_health_fixtures.py (wipes + rebuilds
+# under vaults/) and paired with an Inspection Manifest under manifests/
+# OUTSIDE the vault it counts. Every fixture runs with the shared boot file at
+# _boot/CLAUDE.md (from templates/CLAUDE.md).
+#
+# Fields compared by tests/run_health_coverage.py:
+#   state                 vault_state in the report (current|partial|legacy|incompatible)
+#   scope                 scope claimed by the manifest ("" when unparseable)
+#   verdict               PASS | PARTIAL | BLOCKED
+#   exit_code             0 | 2 | 3
+#   manifest_valid        frontmatter parsed cleanly
+#   errors                exact set of finding IDs in "errors"
+#   deterministic_errors  exact set of validator error IDs the audit proved
+#   info_required         subset of finding IDs that MUST appear in "information"
+#   coverage_complete     bool
+#   gates                 subset of gate booleans, each must match
+#   l3_evidence           subset of L3 section bools, each must match
+#   expected              exact expected_files_calculated (independent recount)
+boot: _boot/CLAUDE.md
+fixtures:
+  - id: "h01"
+    name: clean
+    state: current
+    scope: level1
+    verdict: PASS
+    exit_code: 0
+    manifest_valid: true
+    errors: []
+    deterministic_errors: []
+    info_required: [HC-COVERAGE-COMPLETE]
+    coverage_complete: true
+    expected: 9
+  - id: "h02"
+    name: l3-duplicates-omitted
+    state: current
+    scope: level3
+    verdict: PARTIAL
+    exit_code: 2
+    manifest_valid: true
+    errors: [HC-L3-INCOMPLETE]
+    deterministic_errors: []
+    info_required: [HC-EXCLUSION]
+    coverage_complete: false
+    gates:
+      l3: false
+    l3_evidence:
+      duplicates: false
+      lifecycle: true
+      supersession: true
+    expected: 11
+  - id: "h03"
+    name: skipped
+    state: current
+    scope: level1
+    verdict: PARTIAL
+    exit_code: 2
+    manifest_valid: true
+    errors: []
+    deterministic_errors: []
+    info_required: [HC-SKIPPED]
+    coverage_complete: false
+    gates:
+      partition: true
+    expected: 9
+  - id: "h04"
+    name: exclusions-only
+    state: current
+    scope: level1
+    verdict: PASS
+    exit_code: 0
+    manifest_valid: true
+    errors: []
+    deterministic_errors: []
+    info_required: [HC-EXCLUSION, HC-COVERAGE-COMPLETE]
+    coverage_complete: true
+    expected: 9
+  - id: "h05"
+    name: interrupted
+    state: current
+    scope: level1
+    verdict: PARTIAL
+    exit_code: 2
+    manifest_valid: true
+    errors: [HC-COVERAGE-GAP]
+    deterministic_errors: []
+    info_required: [HC-BUDGET-INTERRUPTED]
+    coverage_complete: false
+    gates:
+      partition: false
+    expected: 9
+  - id: "h06"
+    name: gap
+    state: current
+    scope: level1
+    verdict: PARTIAL
+    exit_code: 2
+    manifest_valid: true
+    errors: [HC-COVERAGE-GAP]
+    deterministic_errors: []
+    info_required: []
+    coverage_complete: false
+    gates:
+      partition: false
+    expected: 9
+  - id: "h07"
+    name: blocked
+    state: current
+    scope: level1
+    verdict: BLOCKED
+    exit_code: 3
+    manifest_valid: true
+    errors: []
+    deterministic_errors: []
+    info_required: [HC-BLOCKED-DEPENDENCY]
+    coverage_complete: true
+    expected: 9
+  - id: "h08"
+    name: clean-false-pass
+    state: current
+    scope: level1
+    verdict: PARTIAL
+    exit_code: 2
+    manifest_valid: true
+    errors: [HC-COVERAGE-GAP, HC-FALSE-PASS]
+    deterministic_errors: []
+    info_required: []
+    coverage_complete: false
+    gates:
+      partition: false
+    expected: 9
+  - id: "h09"
+    name: malformed
+    state: current
+    scope: ""
+    verdict: BLOCKED
+    exit_code: 3
+    manifest_valid: false
+    errors: [HC-MANIFEST-MALFORMED]
+    deterministic_errors: []
+    info_required: []
+    coverage_complete: false
+    expected: 9
+  - id: "h10"
+    name: finding-missed
+    state: current
+    scope: level3
+    verdict: PARTIAL
+    exit_code: 2
+    manifest_valid: true
+    errors: [HC-FINDING-MISSED]
+    deterministic_errors: [FM-MISSING]
+    info_required: [HC-EXCLUSION]
+    coverage_complete: false
+    gates:
+      findings: false
+      l3: true
+    l3_evidence:
+      duplicates: true
+      lifecycle: true
+      supersession: true
+    expected: 11
+  - id: "h11"
+    name: exclusion-invalid
+    state: current
+    scope: level1
+    verdict: PARTIAL
+    exit_code: 2
+    manifest_valid: true
+    errors: [HC-EXCLUSION-INVALID]
+    deterministic_errors: []
+    info_required: []
+    coverage_complete: false
+    gates:
+      exclusion: false
+    expected: 9

@@ -1,0 +1,248 @@
+# Memory Metadata Schema
+#
+# Machine-readable mirror of the metadata semantics in MEMORY_PROTOCOL.md
+# (Metadata section and Structural files section) plus the per-note frontmatter
+# contract in templates/VAULT-INDEX.md. Encodes only what those documents assert.
+# MEMORY_PROTOCOL.md remains the canonical, authoritative specification. On any
+# disagreement the protocol wins — see MEMORY_PROTOCOL.md's "Machine-readable
+# schema" section for the exact authority and detection rules.
+#
+# This is a JSON Schema (draft 2020-12) serialized as YAML. It validates the
+# YAML frontmatter of one note. It is deliberately NOT a validator, scanner, or
+# behavioral implementer: no defaults are applied, no vault is walked, nothing
+# is mutated.
+---
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://github.com/jaredrhod/ai-memory-vault/schema/memory-metadata.schema.yaml
+title: AI Memory Vault — note frontmatter / memory-metadata schema
+description: >-
+  Validates the YAML frontmatter of a single memory-vault note against the
+  metadata field set, enums, value shapes, and lifecycle implications that
+  MEMORY_PROTOCOL.md asserts, plus the status/project/type note contract from
+  templates/VAULT-INDEX.md. Behavioral rules (retrieval priority, candidate
+  promotion, conflict classification, incompatible-state handling) are NOT
+  encoded here; they live only in the Markdown protocol.
+x-protocol-version: "2.6"
+x-schema-version: "1.0.0"
+x-authoritative: MEMORY_PROTOCOL.md
+$comment: >-
+  SCOPE — the field set is exactly what the protocol names. No fields are
+  invented here. candidate_since is intentionally ABSENT: it appears nowhere in
+  MEMORY_PROTOCOL.md (checked repo-wide), so encoding it would invent a
+  field "because it might be useful later."
+
+  FOUR SEMANTIC STATES, PRESERVED — the schema keeps these distinct without
+  collapsing them:
+    - missing   : property absent. Valid unless the property is required. Every
+                  memory-metadata field is optional.
+    - explicit  : property present with a value that satisfies type/enum/format.
+                  Presence vs absence is exactly the explicit-vs-missing line a
+                  validator can draw deterministically.
+    - legacy    : absent because the note predates the layer. Structurally
+                  indistinguishable from "not needed", and that is by design:
+                  absence means "not tracked" for every memory-metadata field.
+    - invalid   : present with a value failing type/enum/format/relationship.
+  ABSENT memory_status is NEVER equivalent to `current`. memory_status has no
+  default (its x-absent-reads-as is empty on purpose). source and confidence
+  carry the protocol's stated defaults (unknown / unverified) as annotations
+  only — the field stays structurally absent, and applying a default at
+  retrieval is a behavior defined in the Markdown, not performed here. A schema
+  consumer that resolves absent source/confidence MUST do so at read time,
+  never by writing the field back into the note (no automatic memory mutation).
+
+  STATUS <> MEMORY_STATUS — independent axes. Every combined value is legal:
+  status: archived + memory_status: current, status: active +
+  memory_status: superseded, and so on. The two vocabularies are disjoint by
+  construction (they share no literal values), so no cross-field rule is needed.
+  Do NOT add one — adversarial-suite cases R2/R3 depend on those pairs
+  validating.
+
+  OUT OF SCOPE AS SINGLE-NOTE CONSTRAINTS — invariants that require the whole
+  vault, so a future scanner runs them across notes, not this schema:
+    - pair-completeness: note A carrying supersedes: [[B]] implies note B
+      carries superseded_by: [[A]] (and vice versa) — "always set in the pair,
+      never just one side" (MEMORY_PROTOCOL.md Metadata).
+    - link resolution: supersedes/superseded_by must point at notes that exist.
+    - memory_status: superseded without any superseded_by link is schema-valid;
+      the protocol implies pairing but does not make the link a syntax
+      requirement, and the Memory Health Check treats it as a flag, not a
+      malformed note. A scanner may WARN on it.
+  Files with no frontmatter (non-notes) are outside this schema's domain.
+
+  STATUS/PROJECT/TYPE REQUIRED — these three are required because
+  templates/VAULT-INDEX.md makes them the per-note frontmatter contract
+  ("required on every note"). MEMORY_PROTOCOL.md itself defines only status's
+  values and defers project/type to the template.
+type: object
+required:
+  - status
+  - project
+  - type
+properties:
+  status:
+    type: string
+    enum:
+      - active
+      - completed
+      - parked
+      - idea
+      - archived
+    description: >-
+      State of the DOCUMENT/project — answers "what state is this note in?".
+      Separates from memory_status, which answers "what state is the claim this
+      note records in?". Sharing no literal values is deliberate (v3.5).
+  project:
+    type: string
+    description: >-
+      What the note serves. The value set is open and per-vault (a person's
+      project slugs); reserved values per templates/VAULT-INDEX.md are
+      `personal` and `meta`. No closed enum is possible, so any non-empty string
+      is structurally valid; known-value checking is the template's job.
+  type:
+    type: string
+    enum:
+      - index
+      - reference
+      - guide
+      - plan
+      - log
+    description: What KIND of document it is (not its topic). See templates/VAULT-INDEX.md.
+  memory_status:
+    type: string
+    enum:
+      - candidate
+      - current
+      - superseded
+      - uncertain
+      - deprecated
+    description: >-
+      Lifecycle state of the CLAIM this note records: candidate (unconfirmed
+      inference), current (confirmed, true today), superseded (explicitly
+      replaced), uncertain (was current, not reconfirmed), deprecated (no longer
+      operative, kept for history). Set explicitly, never assumed. Absent means
+      untracked/legacy and is NEVER equivalent to an explicit `current`.
+    x-absent-reads-as: []
+    x-absent-meaning: >-
+      no default. Absence is its own state ("not tracked"). A consumer MUST NOT
+      resolve absent memory_status to current or to any enum value. Compare
+      tests/fixtures/metadata/absent-memory-status.md vs explicit-current.md.
+  source:
+    type: string
+    enum:
+      - explicit
+      - observed
+      - inferred
+      - imported
+      - system
+      - unknown
+    description: >-
+      How the AI came to believe this fact. Never mark an inference explicit.
+      Default when absent (per the protocol's stated retrieval semantic): unknown.
+    x-absent-reads-as:
+      - unknown
+    x-absent-meaning: >-
+      protocol-stated default when absent is `unknown`. Annotation only: the
+      field is still structurally absent; applying the default happens at read
+      time, never by writing it back into the note.
+  confidence:
+    type: string
+    enum:
+      - high
+      - medium
+      - low
+      - unverified
+    description: >-
+      Evidence quality, not repetition count. Confidence rises only from
+      independent evidence. Default when absent (per the protocol's stated
+      retrieval semantic): unverified.
+    x-absent-reads-as:
+      - unverified
+    x-absent-meaning: >-
+      protocol-stated default when absent is `unverified`. Annotation only: the
+      field is still structurally absent; applying the default happens at read
+      time, never by writing it back into the note.
+  confidence_basis:
+    type: string
+    description: >-
+      One line on what the confidence rests on. Optional even when confidence is
+      set. Free text; no shape constraint beyond being a string.
+  first_observed:
+    type: string
+    pattern: ^\d{4}-\d{2}-\d{2}$
+    format: date
+    description: >-
+      When this fact first entered memory. YYYY-MM-DD. The pattern is a coarse
+      digit-shape guard; full calendar validity (month <= 12, real day) requires
+      format validation to be ENABLED by the validator. A YAML loader may parse
+      a bare date into a date object rather than a string — a validator must
+      normalize (stringify ISO dates) or load scalars as strings before
+      validating, or false "not a string" errors result.
+  last_confirmed:
+    type: string
+    pattern: ^\d{4}-\d{2}-\d{2}$
+    format: date
+    description: >-
+      When the fact was last verified TRUE by fresh, independent evidence — not a
+      re-read of the note itself. YYYY-MM-DD. Same loader note as first_observed.
+  stability:
+    type: string
+    enum:
+      - stable
+      - evolving
+      - volatile
+    description: >-
+      How often this kind of fact tends to change. Mainly useful on procedural
+      notes (Jobs) to flag a method still being worked out.
+  supersedes:
+    type: string
+    pattern: '^\[\[[^\[\]]+\]\]$'
+    description: >-
+      Wikilink to the fact this note replaced (the successor side of a pair).
+      Always paired across notes: the target must carry superseded_by pointing
+      back (vault-level check, not enforced here). Unquoted [[Note Name]] in
+      Obsidian frontmatter can parse as a nested YAML flow sequence instead of a
+      string — write it quoted, and see the loader note on first_observed.
+  superseded_by:
+    type: string
+    pattern: '^\[\[[^\[\]]+\]\]$'
+    description: >-
+      Wikilink to the fact that replaced this one. A note carrying superseded_by
+      asserts the fact it records has been replaced — it must also carry
+      memory_status: superseded (enforced below). Same quoting caveat.
+  memory_role:
+    type: string
+    description: >-
+      Optional tagging for files that exist to make the vault work rather than
+      to hold a memory. The protocol defines one value, `structural`; it does not
+      declare the value set closed. A validator should WARN on unrecognized
+      values, never hard-fail on them.
+    x-known-values:
+      - structural
+$comment: >-
+  JOB DEPENDENCY DECLARATIONS ARE OUT OF SCOPE — a Job's Required/Preferred/
+  Optional context tiers are declared as wikilinks with prose qualifiers in the
+  Job note's Markdown body ([[Note]], [[Note]] (claim), [[Note]] (claim,
+  explicitly-confirmed: N days)), per MEMORY_PROTOCOL.md's Job dependency
+  policy. They are a behavioral contract for an AI to resolve against the
+  vault, not frontmatter — no schema field, enum, or default encodes them, and
+  a validation status here carries no authority over job resolution. Note-level
+  lifecycle fields (memory_status, last_confirmed, supersedes/superseded_by,
+  stability) are the only schema-side inputs those declarations read.
+allOf:
+  - $comment: >-
+      Lifecycle implication (MEMORY_PROTOCOL.md Metadata + UPDATE_MEMORY): a
+      true replacement sets supersedes/superseded_by on both notes and marks the
+      old one memory_status: superseded. Single-note direction: superseded_by
+      present implies memory_status: superseded.
+    if:
+      properties:
+        superseded_by:
+          type: string
+      required:
+        - superseded_by
+    then:
+      properties:
+        memory_status:
+          const: superseded
+      required:
+        - memory_status

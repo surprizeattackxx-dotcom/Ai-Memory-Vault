@@ -1,0 +1,214 @@
+# Machine-checkable expectations for tools/validate-vault.py behavior.
+#
+# Each fixture vault is built by build_fixtures.py (wipes + rebuilds under
+# vaults/). Every fixture shares the same boot file at _boot/CLAUDE.md (outside
+# the vault dirs) except 10-legacy, which is run WITHOUT --boot.
+#
+# Fields compared by tests/run_vault_validator.py:
+#   state            vault_state in the report (current|partial|legacy|incompatible)
+#   verdict          PASS | FAIL | BLOCKED
+#   errors           exact set of finding IDs expected in "errors"
+#   warnings         exact set of finding IDs expected in "warnings"
+#   flagged          exact set of finding IDs expected in "flagged"
+#   info_required    subset of finding IDs that MUST appear in "information"
+#   structural_excluded  exact files_excluded count, when set
+#   run_boot         false only for fixtures run without --boot
+boot: _boot/CLAUDE.md
+fixtures:
+  - id: "01"
+    name: clean
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    info_required: []
+    structural_excluded: null
+    run_boot: true
+  - id: "02"
+    name: malformed-frontmatter
+    state: current
+    verdict: FAIL
+    errors: [FM-UNPARSEABLE]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "03"
+    name: invalid-enum
+    state: current
+    verdict: FAIL
+    errors: [SCHEMA-VIOLATION]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "04"
+    name: broken-superseded-by
+    state: current
+    verdict: FAIL
+    errors: [LC-UNRESOLVED]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "05"
+    name: broken-wikilink
+    state: current
+    verdict: FAIL
+    errors: [WL-UNRESOLVED]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "06"
+    name: structural
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    structural_excluded: 6
+    run_boot: true
+  - id: "07"
+    name: filename-injection
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    info_required: [SUSPECT-FILENAME]
+    run_boot: true
+  - id: "08"
+    name: body-injection
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    info_required: [SUSPECT-BODY]
+    run_boot: true
+  - id: "09"
+    name: metadata-injection
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    info_required: [SUSPECT-METADATA]
+    run_boot: true
+  - id: "10"
+    name: legacy
+    state: legacy
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    info_required: [STATE-LEGACY]
+    run_boot: false
+  - id: "11"
+    name: partial
+    state: partial
+    verdict: PASS
+    errors: []
+    warnings: [STATE-PARTIAL]
+    flagged: []
+    run_boot: true
+  - id: "12"
+    name: incompatible
+    state: incompatible
+    verdict: FAIL
+    errors: [STATE-INCOMPATIBLE]
+    warnings: []
+    flagged: [LC-DISPUTED]
+    run_boot: true
+  - id: "13"
+    name: current-pairs
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    info_required: [DUP-LEXICAL-BODY]
+    run_boot: true
+  - id: "14"
+    name: divergence
+    state: current
+    verdict: FAIL
+    errors: [PARITY-PROTOCOL-VERSION, PARITY-PROTOCOL-DIVERGENCE]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "15"
+    name: transformed
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "16"
+    name: missing-memory-status
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    info_required: [MEMORY-STATUS-ABSENT]
+    run_boot: true
+  - id: "17"
+    name: lifecycle
+    state: current
+    verdict: FAIL
+    errors: [LC-VOCAB-ARCHIVED]
+    warnings: [LC-PAIR-UNRECIPROCATED, LC-SUPERSEDED-NO-LINK]
+    flagged: []
+    info_required: [LC-VOCAB-STALE]
+    run_boot: true
+  - id: "18"
+    name: stripped-index
+    state: current
+    verdict: FAIL
+    errors: [PARITY-INDEX-REGRESSED]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "19"
+    name: self-reference
+    state: current
+    verdict: FAIL
+    errors: [LC-SELF-REF]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "20"
+    name: cycle
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: [LC-CYCLE, LC-PAIR-UNRECIPROCATED]
+    flagged: []
+    run_boot: true
+  - id: "21"
+    name: secret
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    info_required: [POSSIBLE-SECRET]
+    run_boot: true
+  - id: "22"
+    name: legacy-zone
+    state: current
+    verdict: PASS
+    errors: []
+    warnings: []
+    flagged: []
+    info_required: [LEGACY-ZONE, FM-MISSING, SCHEMA-VIOLATION]
+    run_boot: true
+  - id: "23"
+    name: handoff-scope
+    state: current
+    verdict: FAIL
+    errors: [SCHEMA-VIOLATION]
+    warnings: []
+    flagged: []
+    info_required: []
+    run_boot: true

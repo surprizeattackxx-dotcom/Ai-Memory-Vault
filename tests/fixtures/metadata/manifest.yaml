@@ -1,0 +1,46 @@
+# Machine-checkable fixture manifest for schema/memory-metadata.schema.yaml
+#
+# These differ from tests/ADVERSARIAL_REGRESSION_SUITE.md, which is a catalog of
+# behavioral AI scenarios. Each fixture here is a complete note whose frontmatter
+# must deterministically validate (or fail) against the schema — no AI in the
+# loop. `expected: valid` means the note's frontmatter satisfies the schema.
+# `expected: invalid` means it must FAIL, exercising the listed rule.
+#
+# Validator determinism notes (see schema header comments):
+#   - format: date must be ENABLED to catch calendar-invalid dates.
+#   - a YAML loader may parse bare dates (2026-08-29) as date objects and
+#     unquoted [[wikilinks]] as nested flow sequences — normalize scalars to
+#     strings before validating, or quote wikilinks in source.
+schema: schema/memory-metadata.schema.yaml
+protocol-version: "2.6"
+fixtures:
+  - file: valid-current.md
+    expected: valid
+    rule: "Full normative metadata set — explicitly memory_status: current, source explicit, confidence high, dates, stability."
+  - file: valid-legacy.md
+    expected: valid
+    rule: "Zero lifecycle metadata — base frontmatter only. Absence is never an error (adversarial M3); must NOT be read as current."
+  - file: candidate.md
+    expected: valid
+    rule: "memory_status: candidate + source: inferred — the unconfirmed-inference creation shape (Candidate memory)."
+  - file: superseded.md
+    expected: valid
+    rule: "superseded + superseded_by — the old side of a true replacement; lifecycle implication holds."
+  - file: superseding.md
+    expected: valid
+    rule: "supersedes + memory_status: current — the new side of the pair. Pair-completeness (A.supersedes implies B.superseded_by) is vault-level, not single-note."
+  - file: explicit-current.md
+    expected: valid
+    rule: "Explicitly assigned memory_status: current — the only path to the current tier (adversarial M2)."
+  - file: absent-memory-status.md
+    expected: valid
+    rule: "Tracked note with provenance/confidence but NO memory_status — ABSENT != current (adversarial M1)."
+  - file: invalid-enum.md
+    expected: invalid
+    rule: "memory_status: fresh — not in the normative vocabulary; fails the memory_status enum."
+  - file: invalid-date.md
+    expected: invalid
+    rule: "last_confirmed: 2026-13-45 — calendar-invalid; fails format: date (the digit-shape pattern passes on its own, which is why format validation must be enabled)."
+  - file: invalid-lifecycle-relationship.md
+    expected: invalid
+    rule: "superseded_by present with memory_status: current — must be superseded; fails the superseded_by lifecycle implication."
