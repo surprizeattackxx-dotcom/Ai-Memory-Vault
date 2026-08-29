@@ -41,3 +41,19 @@ Mostly it's a gift: the cloud is keeping a free, automatic backup of your agent'
 ## The AI says it can't read or find the vault
 
 The vault path lives in two places: the `CLAUDE.md` boot config in your working folder, and VAULT-INDEX's "Vault location" section. If the vault moved (or a cloud service relocated it), those paths went stale. Tell your agent the new path and have it update both. If reads fail only sometimes, see the placeholder eviction fix above.
+
+## What is `MEMORY_PROTOCOL.md` and do I need it?
+
+It's the full rulebook behind how your AI reads, writes, and resolves conflicts in memory — the eight operations (boot, retrieve, write, resolve a conflict, health-check, and so on), spelled out precisely enough that any capable AI agent can implement them, not only Claude Code. A copy ships inside your vault at `Resources/MEMORY_PROTOCOL.md`. You don't need to read it day to day — `CLAUDE.md` and `VAULT-INDEX.md` already carry the operational summary your AI actually runs on. Open it when you want the exact definition behind a term like `memory_status` or `candidate`, or if you're wiring up a second AI tool and want it to follow the same rules.
+
+## A note has `memory_status`, `confidence`, or `source` in its frontmatter — what do those mean?
+
+These are optional tags a small number of fact-bearing notes carry (a Key People entry, a preference, a project fact) — most notes, like daily logs, indexes, and Jobs, never need them. In short: `memory_status` is where the fact is in its life (`candidate` = an unconfirmed guess, `current` = confirmed and current, `superseded`/`deprecated` = replaced or retired but kept for history). `source` says how the AI came to believe it (`explicit` = you said it, `inferred` = the AI concluded it). `confidence` is how sure the AI is. None of this is required — a note without these fields is perfectly normal, especially anything from before this layer existed. Full definitions are in `Resources/MEMORY_PROTOCOL.md`.
+
+## The AI flagged a conflict and won't just pick an answer
+
+That's working as intended. When two things in your vault genuinely can't both be true and there's no way to tell which is current from what's written, your AI is supposed to say so rather than guess — silently picking one is exactly the kind of quiet data corruption this layer exists to prevent. Answer the question it's asking (which one is actually true now, or are they both true at different times) and it'll resolve the note, linking the old one as superseded rather than deleting it.
+
+## My vault is older and doesn't have any of this — is it broken?
+
+No. Everything above is optional and additive. A vault built before this layer existed keeps working exactly as it always has; nothing about it needs fixing or rebuilding. If you want the new pieces (the protocol file, the health-check Job, the metadata fields), just ask your agent — it'll add them without touching your existing notes, and new fields only get added to a note when you're already editing it for some other reason.
