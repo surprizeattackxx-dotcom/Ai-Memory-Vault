@@ -54,6 +54,10 @@ These are optional tags a small number of fact-bearing notes carry (a Key People
 
 That's working as intended. When two things in your vault genuinely can't both be true and there's no way to tell which is current from what's written, your AI is supposed to say so rather than guess — silently picking one is exactly the kind of quiet data corruption this layer exists to prevent. Answer the question it's asking (which one is actually true now, or are they both true at different times) and it'll resolve the note, linking the old one as superseded rather than deleting it.
 
+## My AI said "INCOMPATIBLE PROTOCOL STATE DETECTED" — what does that mean?
+
+Different from a `PARTIAL UPGRADE DETECTED` message (that one just means an upgrade is mid-way). This one means two of the files your AI reads to know the rules — usually `Resources/MEMORY_PROTOCOL.md` and your `VAULT-INDEX.md` — actually disagree about what a specific term means, not just that one of them is behind. Your AI should name the two files and the exact term or field they disagree on. Until you say which one is right, it won't guess, and it won't quietly go with whichever one looks newer — it treats any note whose meaning depends on that disputed term as "can't tell yet," while everything else keeps working normally. Tell it which file is correct (usually `MEMORY_PROTOCOL.md`, since it's the canonical source) and have it sync the other one to match.
+
 ## My vault is older and doesn't have any of this — is it broken?
 
 No. Everything above is optional and additive. A vault built before this layer existed keeps working exactly as it always has; nothing about it needs fixing or rebuilding. If you want the new pieces (the protocol file, the health-check Job, the metadata fields), just ask your agent — it'll add them without touching your existing notes, and new fields only get added to a note when you're already editing it for some other reason.

@@ -23,3 +23,6 @@ Per `MIGRATION.md` Phase 6 and this project's release process: every **P0** test
 - promotes repeated copies of one observation to "independent confirmation"
 - declares a partially upgraded vault fully current
 - reports a structural file as an ordinary orphan
+- treats an absent `memory_status` field as equivalent to an explicit `current`
+- declares an `incompatible` vault state `current` or `partial` without disclosing the conflict
+- silently resolves a protocol-vocabulary conflict by picking the newer or older surface on its own, in either direction

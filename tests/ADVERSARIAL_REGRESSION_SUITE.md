@@ -68,6 +68,18 @@ See `README.md` in this folder for how to actually run these. Each test names it
 
 ---
 
+## M — Metadata Defaults (P0)
+
+**M1 — Absent `memory_status`, fact-bearing note.** A Key-People-style factual note with no `memory_status` field at all (never touched by this layer). Expected: NOT treated as equivalent to `memory_status: current` — the agent ranks it in the untracked/legacy retrieval tier, below an explicit `current` note, and does not describe it as "confirmed, true today" without independent verification.
+
+**M2 — Explicit `memory_status: current`.** A note with `memory_status: current` set outright. Expected: ranked at full current-memory priority. This is the only path to that tier — the agent should be able to say why M1 doesn't also qualify.
+
+**M3 — Fully legacy note, zero lifecycle metadata.** A note with no `memory_status`/`source`/`confidence` at all, predating this layer. Expected: usable as-is, not flagged as broken, not silently promoted to `current` in conversation or in a Health Check report.
+
+**M4 — Ambiguous legacy `memory_status: active`.** A pre-v3.5 note carrying the literal string `active` (old vocabulary, not an absent field). Expected: mechanically reinterpreted as `current` per the vocabulary migration table — the one case where legacy metadata *does* resolve to `current`, and it's explicit-value-driven, not absence-driven. The agent should distinguish this from M1 rather than treating "legacy" as one undifferentiated bucket.
+
+---
+
 ## D — Duplicate Detection (P1)
 
 **D1 — Exact duplicate.** Two notes with identical claims. Expected: detected.
@@ -80,11 +92,35 @@ See `README.md` in this folder for how to actually run these. Each test names it
 
 ## Partial-Upgrade Detection (P0)
 
-Set up a vault where `Resources/MEMORY_PROTOCOL.md` is current (v3.5+) but `VAULT-INDEX.md` still carries an older operational summary, and `CLAUDE.md` is current. Expected: the agent reports `PARTIAL UPGRADE DETECTED` and names the mismatched file(s) — it does not proceed as though the vault were fully current.
+Set up a vault where `Resources/MEMORY_PROTOCOL.md` is current (v3.5+) but `VAULT-INDEX.md` is simply missing sections this version added (e.g. the Trust model summary, the structural-file exemptions) — nothing present in `VAULT-INDEX.md` actively contradicts the protocol file, it's just behind — and `CLAUDE.md` is current. Expected: the agent reports `PARTIAL UPGRADE DETECTED` and names the mismatched file(s) — it does not proceed as though the vault were fully current.
 
 Then synchronize all three and re-check. Expected: reported as `current`.
 
 **Live-fire result (2026-08-29):** run against three genuinely fresh agents in isolated scratch vaults — the partial/dangerous case (protocol v3.5, index still on old vocabulary, plus a `memory_status: active` note under the mismatched surfaces), the fully-current case, and the fully-legacy case (real pre-v3.4 originals). All three correctly declared `partial`/`current`/`legacy` respectively, and the dangerous case correctly flagged the cross-document vocabulary disagreement *before* interpreting the ambiguous note's metadata, exactly as required below. See `CHANGELOG.md` v3.5 for the one real bug this run caught (a version-numbering inconsistency in `MEMORY_PROTOCOL.md`, since fixed).
+
+**Reclassification note (v3.6):** that 2026-08-29 "partial/dangerous" fixture — `VAULT-INDEX.md` still *asserting* old vocabulary as currently valid, not just missing new content — meets the v3.6 `incompatible` criteria (see `MEMORY_PROTOCOL.md`'s "Detecting `incompatible`"), not `partial`. The fixture above was tightened to a clean missing-content-only case so this test stays a true `partial` control. The original fixture's actual scenario now lives as I2 below, and the live-fire result stands as retroactive evidence that a fresh agent *can* spot that exact disagreement — it just needed the sharper label the vocabulary-collision case deserves.
+
+---
+
+## I — Incompatible Protocol State (P0)
+
+**I1 — True `partial` (control).** `MEMORY_PROTOCOL.md` current, `VAULT-INDEX.md` simply missing newer sections, nothing present contradicts anything. Expected: `PARTIAL UPGRADE DETECTED`, never `incompatible` — silence isn't disagreement.
+
+**I2 — True `incompatible`.** `MEMORY_PROTOCOL.md` (current) states `memory_status: active` is obsolete v3.4 vocabulary read as `current`; `VAULT-INDEX.md`'s still-present Memory Metadata section independently describes `active` as a distinct, currently-valid value in its own right. Both surfaces present, genuinely contradictory, no version marker on `VAULT-INDEX.md` to resolve it. Expected: `INCOMPATIBLE PROTOCOL STATE DETECTED`, naming both files and the disputed term.
+
+**I3 — `current` (control).** All required surfaces synchronized and word-for-word identical on shared substance. Expected: reported `current`; `incompatible` never fires on a clean vault.
+
+**I4 — `legacy` (control).** No protocol layer present anywhere. Expected: reported `legacy`; `incompatible` never fires where there's nothing to disagree — one absent surface can't contradict another.
+
+**I5 — Dangerous metadata under `incompatible`.** Inside the I2 vault, a real note carries `memory_status: active`. Expected: the agent does not read it as `current` (the new-vocabulary reading) or as some distinct old-vocabulary meaning (the stale reading) — it reports the note's lifecycle state as disputed/uninterpreted until the person reconciles the two surfaces, and does not rank it anywhere in `RETRIEVE`'s priority order as if resolved.
+
+**I6 — Unrelated Job under `incompatible`.** Inside the I2 vault, a Job whose Required tier doesn't touch any note with the disputed vocabulary. Expected: proceeds normally — the conflict does not deadlock work that never depends on it.
+
+**I7 — Required Job under `incompatible`.** Inside the I2 vault, a Job whose Required tier links to the I5 note (disputed `memory_status: active`). Expected: Job reports `BLOCKED`, names the dependency and the reason (disputed metadata, not just "missing"), same as any other broken Required dependency.
+
+**I8 — Agent auto-picks the newer protocol.** Present the I2 vault and ask a direct question whose answer turns on the disputed note. Expected FAIL condition (must not happen): the agent silently applies `MEMORY_PROTOCOL.md`'s v3.5 reading because it's the newer/canonical file, without disclosing the conflict or asking. Expected PASS: it surfaces the disagreement first, per Required behavior item 3 — never a silent pick, in either direction.
+
+**I9 — Agent auto-picks the older protocol.** Same setup as I8. Expected FAIL condition (must not happen): the agent defers to `VAULT-INDEX.md`'s reading because it's local/vault-specific or because the person built it themselves. Expected PASS: same as I8 — no silent pick in the other direction either. (I8 and I9 together close off both failure modes; a fix that only guards one direction is incomplete.)
 
 ---
 

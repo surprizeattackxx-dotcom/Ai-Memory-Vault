@@ -11,8 +11,9 @@ How an existing vault moves to the current version of `MEMORY_PROTOCOL.md`, with
 Before doing anything, determine which state the vault is actually in — don't assume:
 
 - **`legacy`** — no current-protocol metadata or rules detected at all (no `Resources/MEMORY_PROTOCOL.md`, no `memory_status`/`source`/`confidence` fields anywhere, `VAULT-INDEX.md`/`CLAUDE.md` don't carry the current operational sections). Fully functional as-is.
-- **`partial`** — some current-protocol components exist, others don't (e.g. `Resources/MEMORY_PROTOCOL.md` is current but `VAULT-INDEX.md`'s Memory Metadata section is an older version, or vice versa). **Report this explicitly as "PARTIAL UPGRADE DETECTED" and name the mismatched pieces** — never assume or claim the vault is fully current when it isn't.
+- **`partial`** — some current-protocol components exist, others don't, and the ones that don't are simply behind, not contradicting (e.g. `Resources/MEMORY_PROTOCOL.md` is current but `VAULT-INDEX.md`'s Memory Metadata section is an older version, or vice versa). **Report this explicitly as "PARTIAL UPGRADE DETECTED" and name the mismatched pieces** — never assume or claim the vault is fully current when it isn't.
 - **`current`** — `MEMORY_PROTOCOL.md`, the boot file, and the root index are all synchronized with this version.
+- **`incompatible`** — two or more of those surfaces are each present but assert genuinely conflicting meanings for the same vocabulary term or field default (not just staleness) — e.g. `MEMORY_PROTOCOL.md` treats `memory_status: active` as obsolete v3.4 vocabulary while `VAULT-INDEX.md`'s still-present Memory Metadata text describes `active` as a distinct, currently-valid value. Exact detection criteria and required behavior are in `MEMORY_PROTOCOL.md`'s "Detecting `incompatible`" / "Required behavior when `incompatible`". Never resolve this by guessing which surface is right — flag it for the person exactly like an ambiguous `archived` value in Phase 3 below.
 
 Check by comparing `Resources/MEMORY_PROTOCOL.md`'s `version:` frontmatter (if present) against this repo's `MEMORY_PROTOCOL.md`, and by checking whether `VAULT-INDEX.md`/`CLAUDE.md` contain the sections this version added (Trust model, `status`/`memory_status` distinction, structural-file exemptions).
 
@@ -47,6 +48,7 @@ Update, in this order: `MEMORY_PROTOCOL.md` (canonical) → `VAULT-INDEX.md` →
 Before calling the vault `current`:
 
 - Run a systematic diff between canonical and embedded/template text where word-for-word parity is required — not a visual spot-check.
+- Confirm the vault isn't in an `incompatible` state (see `MEMORY_PROTOCOL.md`) before declaring it `current` — if it is, reconcile the conflicting surfaces first; never overwrite one side by guessing which was intended.
 - Run the Memory Health Check (Level 1 at minimum) and confirm it reports cleanly, or that every finding is understood and expected.
 - Confirm every flagged `memory_status: archived` note from Phase 3 has actually been reviewed, not just listed.
 - Re-read `VAULT-INDEX.md`'s "Vault location" and structure map to confirm nothing drifted during the append steps.
