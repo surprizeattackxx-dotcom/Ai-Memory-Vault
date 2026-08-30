@@ -1,0 +1,341 @@
+# Machine-checkable expectations for tools/audit_job_dependencies.py behavior.
+#
+# Each fixture vault is built by build_job_fixtures.py (wipes + rebuilds under
+# vaults/). All fixtures share the boot file at
+# tests/fixtures/vaults/_boot/CLAUDE.md (the main fixture set's boot copy —
+# nothing job-specific about a boot file, so there is no reason to duplicate
+# it). Run date is pinned to 2026-08-30 (--today) so results never depend on
+# wall-clock time.
+#
+# Fields compared by tests/run_job_dependency_audit.py:
+#   vault_state      report vault_state (current|incompatible)
+#   jobs_examined    exact count of Job notes the tool identified as Jobs
+#   jobs_blocked     exact count with verdict BLOCKED
+#   errors           exact finding-ID multiset expected in "errors"
+#   warnings         exact finding-ID multiset expected in "warnings"
+#   info_required    subset of finding IDs that MUST appear in "information"
+#
+# Every fixture isolates exactly one row of MEMORY_PROTOCOL.md's Job
+# dependency policy table (or one tier-semantics rule) from unrelated
+# schema/lifecycle noise — see build_job_fixtures.py docstring.
+boot: ../vaults/_boot/CLAUDE.md
+fixtures:
+  - id: JA
+    name: missing
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-MISSING]
+    warnings: []
+    info_required: []
+    note: "Required (claim) -> target note does not exist -> BLOCK missing (protocol table row 'Link unresolvable / note missing')"
+  - id: JB
+    name: superseded
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-SUPERSEDED]
+    warnings: []
+    info_required: []
+    note: "Required (claim) -> target memory_status: superseded -> BLOCK superseded, regardless of declaration class"
+  - id: JC
+    name: candidate-claim
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-CANDIDATE]
+    warnings: []
+    info_required: []
+    note: "Required (claim) -> target memory_status: candidate -> BLOCK candidate (claim class fails on candidate)"
+  - id: JD
+    name: malformed-declaration
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-AUTHORING-DEFECT]
+    warnings: []
+    info_required: []
+    note: "(claim, explicitly-confirmed) with no window value -> unresolvable qualifier grammar -> BLOCK authoring-defect, target's own clean `current` state never even inspected"
+  - id: JE
+    name: stale
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-STALE]
+    warnings: []
+    info_required: []
+    note: "(claim, explicitly-confirmed: 7 days) -> last_confirmed 2026-01-01, run date 2026-08-30, well outside window -> BLOCK stale"
+  - id: JF
+    name: current-pass
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "Required (claim) -> target memory_status: current, no window declared -> PASS. Positive control the block cases are defined against."
+  - id: JG
+    name: operational-disclosed
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-DEGRADED-DISCLOSED]
+    note: "Required, unqualified [[Note]] -> target has zero lifecycle metadata (absent memory_status) -> PASS, disclosed (operational is the permissive default)"
+  - id: JH
+    name: cycle
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-CYCLE]
+    warnings: []
+    info_required: []
+    note: "Required (claim) -> target is the MIDDLE node of a 3-node supersedes cycle (x->y->z->x) -> BLOCK ambiguous-cycle. Proves per-node cycle-membership detection independent of validate-vault.py's own _check_cycles(), which only ever reports one node of a cycle and stops."
+  - id: JI
+    name: preferred-degraded
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: [JOB-PREFERRED-DEGRADED]
+    info_required: [JOB-REQUIRED-PASS]
+    note: "Required clean (PASS) + Preferred (claim) pointing at a superseded note -> Job still PASSes overall; Preferred degradation is disclosed, never blocking (Q12)"
+  - id: JJ
+    name: optional-silent
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    info_forbidden: [JOB-OPTIONAL-MISSING, JOB-OPTIONAL-DEGRADED]
+    note: "Required clean (PASS) + Optional missing -> silent by default (protocol: 'Missing -> the Job proceeds without comment unless specifically asked'). show_optional_check below verifies --show-optional surfaces it."
+    show_optional_check:
+      info_required: [JOB-OPTIONAL-MISSING]
+  - id: JK
+    name: malformed-target
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-MALFORMED-NOTE]
+    warnings: []
+    info_required: []
+    note: "Required (claim) -> target note's own YAML frontmatter fails to parse -> BLOCK malformed, before memory_status is even read"
+  - id: JL
+    name: disputed
+    vault_state: incompatible
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-DISPUTED]
+    warnings: []
+    info_required: []
+    note: "Vault is in an incompatible protocol state over memory_status: active; Required (claim) target carries that disputed value -> BLOCK disputed, never interpreted under either reading"
+  - id: JM
+    name: unrelated-job-unaffected
+    vault_state: current
+    jobs_examined: 2
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-MISSING]
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "Job A's Required dependency is missing -> BLOCKED; Job B, unrelated, resolves PASS in the same run (Q5: block scope is the Job, not the session)"
+  - id: JN
+    name: not-a-job-index
+    vault_state: current
+    jobs_examined: 0
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-NOT-A-JOB]
+    note: "A note under Jobs/ with no Required/Preferred/Optional tier line (a folder index) is never treated as a Job"
+
+  # ---------------------------------------------------------------------
+  # P0-1 / P0-2 boundary-oriented regression matrix, added 2026-08-30 after
+  # an independent adversarial review found both defects in v1.0.0 of the
+  # auditor. See tools/audit_job_dependencies.py's module docstring and
+  # resolve_job_target()/parse_tiers() docstrings for the exact mechanisms.
+  # ---------------------------------------------------------------------
+
+  - id: JO
+    name: exact-path-target
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-1 path resolution #1: a path-qualified [[folder/Note]] link resolves to the exact declared target"
+  - id: JP
+    name: decoy-current-declared-superseded
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-SUPERSEDED]
+    warnings: []
+    info_required: []
+    note: "P0-1 path resolution #2/#3, THE original bypass: same-stem decoy note is current in a different folder; the path-qualified declared target is superseded. Must block on the real target, never the decoy."
+  - id: JQ
+    name: decoy-current-declared-candidate
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-CANDIDATE]
+    warnings: []
+    info_required: []
+    note: "P0-1 path resolution #4: same pattern as JP with a candidate-under-claim declared target instead of superseded"
+  - id: JR
+    name: ambiguous-unqualified
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-AMBIGUOUS-TARGET]
+    warnings: []
+    info_required: []
+    note: "P0-1 path resolution #5: two real notes share one stem in different folders; the Job's link is UNQUALIFIED (no path) -> genuinely ambiguous -> fail closed, never silently pick whichever sorts first"
+  - id: JS
+    name: nested-path
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-1 path resolution #6: a multi-segment nested path resolves to the exact target"
+  - id: JT
+    name: nonexistent-path
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-MISSING]
+    warnings: []
+    info_required: []
+    note: "P0-1 path resolution #7: the declared path does not correspond to any real note's location, even though a same-stem note exists elsewhere -> MISSING, no fallback"
+  - id: JU
+    name: unqualified-single-match
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-1 path resolution #8, regression control: the one already-tested unqualified case (exactly one same-stem note anywhere) is unweakened by the fix"
+
+  - id: JV
+    name: two-required-valid
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-2 tier parsing #2: two Required deps on ONE line, middle-dot separated (the shipped templates' own convention) — confirms the fix did not regress the case that happened to work before"
+  - id: JW
+    name: three-required-valid
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-2 tier parsing #3/#6: three Required deps as a multi-line bullet list, all valid"
+  - id: JX
+    name: first-valid-second-missing
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-MISSING]
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-2 tier parsing #4, THE critical regression named in the report: first item valid, second missing. Must BLOCK, and the first item's own PASS is still independently recorded."
+  - id: JY
+    name: first-missing-second-valid
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-MISSING]
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-2 tier parsing #5: order independence — a failing item FIRST must not stop or skew evaluation of the item after it"
+  - id: JZ
+    name: mixed-tiers-multi-item
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: [JOB-PREFERRED-DEGRADED]
+    info_required: [JOB-REQUIRED-PASS, JOB-PREFERRED-PASS]
+    note: "P0-2 tier parsing #7: Required (2 items), Preferred (2 items, one degraded), Optional (1 missing) all as multi-line bullets in the same Job — every tier parses completely and independently"
+  - id: KA
+    name: blank-lines-between-items
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-2 tier parsing #8: blank lines between bulleted items are a no-op for extraction"
+  - id: KB
+    name: malformed-among-valid-siblings
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-AUTHORING-DEFECT]
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-2 tier parsing #9: a malformed qualifier on the second item does not prevent the first, valid item from being parsed and independently evaluated"
+  - id: KC
+    name: four-failure-states-combined
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-MISSING, JOB-BLOCKED-CANDIDATE, JOB-BLOCKED-SUPERSEDED]
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-2 tier parsing #10: four Required deps in one tier, four different outcomes (missing/superseded/candidate/current) — every item evaluated independently, none short-circuits another"
+
+  - id: KD
+    name: fenced-duplicate-after-real-missing
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-MISSING]
+    warnings: []
+    info_required: []
+    note: "P0-3: a fenced code example after a real missing Required tier is literal text and cannot overwrite the real tier."
+  - id: KE
+    name: fenced-duplicate-before-real-missing
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-MISSING]
+    warnings: []
+    info_required: []
+    note: "P0-3 order control: a fenced fake Required tier before the real missing declaration is ignored."
+  - id: KF
+    name: duplicate-real-required-headers
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-AUTHORING-DEFECT, JOB-BLOCKED-MISSING]
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-3: duplicate real Required headers are an authoring defect and both dependency sets remain independently evaluated."
+  - id: KG
+    name: fenced-preferred-optional-also-fake
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 0
+    errors: []
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS, JOB-PREFERRED-PASS]
+    note: "P0-3 regression #9/#10: a single fenced worked example containing fake Required, Preferred, AND Optional lines together — none of the three fenced notes (which don't exist) may leak into any real tier or trigger a duplicate-tier defect on an otherwise clean Job."
+  - id: KH
+    name: duplicate-real-both-valid
+    vault_state: current
+    jobs_examined: 1
+    jobs_blocked: 1
+    errors: [JOB-BLOCKED-AUTHORING-DEFECT]
+    warnings: []
+    info_required: [JOB-REQUIRED-PASS]
+    note: "P0-3: two real Required headers where BOTH dependency sets independently resolve fine — the duplicate declaration itself blocks the Job, not merely as a side effect of one half failing."

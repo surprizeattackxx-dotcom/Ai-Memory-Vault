@@ -938,6 +938,54 @@ See [[Missing-Shared-Target]] too.
     return files, {"state": "current", "verdict": "FAIL", "errors": ["WL-UNRESOLVED", "WL-UNRESOLVED"], "warnings": [], "flagged": [], "run_boot": True}
 
 
+def fixture_30_cycle_3node():
+    # Regression fixture for a gap the 2026-08-30 lifecycle audit found in the
+    # fixture suite (not the validator): fixtures 20/25 only ever exercise a
+    # 2-node cycle. _check_cycles()'s DFS is general graph traversal with no
+    # hard-coded depth, but that had never actually been exercised past 2
+    # hops. Three notes, `supersedes` only (mirrors fixture 20's style,
+    # extended by one hop) so no note trips the separate
+    # superseded_by-implies-superseded schema rule — isolates cycle-length
+    # detection from any schema-violation confound. X -> Y -> Z -> X.
+    files = base_files()
+    files["00 - Inbox/x-cycle3.md"] = """---
+status: active
+project: personal
+type: reference
+memory_status: current
+supersedes: "[[y-cycle3]]"
+---
+# X Cycle3
+
+Forward edge to Y.
+"""
+    files["00 - Inbox/y-cycle3.md"] = """---
+status: active
+project: personal
+type: reference
+memory_status: current
+supersedes: "[[z-cycle3]]"
+---
+# Y Cycle3
+
+Forward edge to Z.
+"""
+    files["00 - Inbox/z-cycle3.md"] = """---
+status: active
+project: personal
+type: reference
+memory_status: current
+supersedes: "[[x-cycle3]]"
+---
+# Z Cycle3
+
+Forward edge back to X. Closes the loop X->Y->Z->X.
+"""
+    return files, {"state": "current", "verdict": "FAIL", "errors": ["LC-CYCLE"],
+                   "warnings": ["LC-PAIR-UNRECIPROCATED", "LC-PAIR-UNRECIPROCATED", "LC-PAIR-UNRECIPROCATED"],
+                   "flagged": [], "run_boot": True}
+
+
 FIXTURES = [
     ("01-clean", fixture_01_clean),
     ("02-malformed-frontmatter", fixture_02_malformed_frontmatter),
@@ -968,6 +1016,7 @@ FIXTURES = [
     ("27-handoff-status-invalid", fixture_27_handoff_status_invalid),
     ("28-handoff-done-outside-handoff", fixture_28_handoff_done_outside_handoff),
     ("29-duplicate-findings", fixture_29_duplicate_findings),
+    ("30-cycle-3node", fixture_30_cycle_3node),
 ]
 
 

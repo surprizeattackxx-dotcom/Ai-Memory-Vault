@@ -270,3 +270,17 @@ fixtures:
     warnings: []
     flagged: []
     run_boot: true
+  - id: "30"
+    name: cycle-3node
+    state: current
+    verdict: FAIL
+    # 3-node cycle (X->Y->Z->X), supersedes only, isolated from the
+    # superseded_by-implies-superseded schema rule. Regression fixture: the
+    # 2026-08-30 lifecycle audit found only 2-node cycles (fixtures 20, 25)
+    # had ever been exercised; _check_cycles()'s DFS is general graph
+    # traversal with no hard-coded depth and correctly detects this too, but
+    # nothing pinned that behavior before this fixture.
+    errors: [LC-CYCLE]
+    warnings: [LC-PAIR-UNRECIPROCATED, LC-PAIR-UNRECIPROCATED, LC-PAIR-UNRECIPROCATED]
+    flagged: []
+    run_boot: true
