@@ -101,12 +101,17 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = REPO_ROOT / "tools" / "validate-vault.py"
+IDENTITY = REPO_ROOT / "tools" / "vault_identity.py"
 
 _spec = importlib.util.spec_from_file_location("validate_vault", VALIDATOR)
 vv = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(vv)
 
-AUDITOR_VERSION = "1.2.0"
+_id_spec = importlib.util.spec_from_file_location("vault_identity", IDENTITY)
+vid = importlib.util.module_from_spec(_id_spec)
+_id_spec.loader.exec_module(vid)
+
+AUDITOR_VERSION = "1.2.1"
 
 TIER_HEADER_RE = re.compile(r"^\*\*(Required|Preferred|Optional):\*\*", re.MULTILINE)
 SECTION_HEADING_RE = re.compile(r"^#{1,6}\s", re.MULTILINE)
@@ -202,86 +207,19 @@ def compute_cycle_members(vault: "vv.Vault") -> set[str]:
 
 
 def resolve_job_target(vault: "vv.Vault", raw_link: str):
-    """Path-aware, fail-closed resolver for a Job's declared dependency link.
-
-    P0-1 fix (2026-08-30): validate-vault.py's Vault.resolve_link() discards
-    any path qualifier outright (`if "/" in raw: raw = raw.rsplit("/", 1)[-1]`)
-    and matches purely by filename stem — the FIRST same-stem note found in
-    path-sort order, silently, regardless of what path the link actually named.
-    For a Job's Required tier that is a real integrity hole: a link explicitly
-    qualified `[[09 - Resources/required-source]]` could resolve to an
-    unrelated `00 - Inbox/required-source.md` that merely happens to sort
-    first and happens to be `current`, producing a false PASS on a
-    dependency that was never actually inspected.
-
-    This resolver is used ONLY for Job dependency declarations, deliberately
-    NOT wired into the shared vv.Vault.resolve_link(). Every other caller of
-    resolve_link()/note_by_stem() in this repo (validate-vault.py's
-    check_lifecycle/check_wikilinks/check_structural, this same module's own
-    compute_cycle_members(), and audit_health_coverage.py's independent
-    stem-only lookup in gate_l3()) is untouched by this fix — see the P0-1
-    remediation note in this module's top-level docstring for why a dedicated
-    resolver was used instead of changing the shared one: those call sites are
-    exercised by 59 already-green fixtures, none of which use a path-qualified
-    link anywhere (confirmed by repo-wide grep before this change), so
-    reworking the shared resolver was strictly higher-risk than adding one
-    used only where the P0 was actually filed. The shared resolver's identical
-    stem-only defect is disclosed, not fixed, in the final report's Remaining
-    risks section.
-
-    Returns (target_note_or_None, ambiguous_candidates). `ambiguous_candidates`
-    is non-empty exactly when more than one note satisfies the declared
-    identity — path-qualified or not — and the caller MUST fail closed in that
-    case: never guess, never prefer a `current` sibling, never use recency or
-    semantic similarity as a tie-breaker (all four explicitly prohibited by
-    the P0-1 remediation instructions).
-
-    Path-qualified (`raw_link` contains `/`): the qualifying segments must
-    match a SUFFIX of the target's actual directory path, in order — the same
-    disambiguation Obsidian itself performs for a partial-path wikilink. A
-    declared path that does not correspond to any real note's location is
-    MISSING, even when a same-stem note exists elsewhere — the exact declared
-    target is used, or nothing is.
-
-    Unqualified (`raw_link` has no `/`): stem match anywhere in the vault, as
-    before. Existing unqualified-link behavior is unweakened for the sole
-    already-tested case (exactly one same-stem note) — the only change is that
-    a *genuinely* ambiguous unqualified name (two-or-more real notes sharing
-    that exact stem, ~never seen in the existing 59 fixtures, all single-match)
-    now fails closed instead of silently picking whichever sorts first. Fixing
-    P0-1 while leaving that adjacent case free to silently misresolve the same
-    way would not be a real fix."""
-    raw = raw_link.strip()
-    if raw.startswith("[[") and raw.endswith("]]"):
-        raw = raw[2:-2]
-    raw = raw.split("|")[0].strip()
-    if "#" in raw:
-        raw = raw.split("#", 1)[0].strip()
-    if not raw:
-        return None, []
-    raw = raw.replace("\\", "/")
-    segments = [seg for seg in raw.split("/") if seg]
-    if not segments:
-        return None, []
-    want_stem = segments[-1]
-    if want_stem.lower().endswith(".md"):
-        want_stem = want_stem[:-3]
-    want_dir = [s.lower() for s in segments[:-1]]
-
-    matches = []
-    for note in vault.notes:
-        if note["stem"].lower() != want_stem.lower():
-            continue
-        if want_dir:
-            note_dir = [p.lower() for p in note["dir_parts"]]
-            if len(want_dir) > len(note_dir) or note_dir[len(note_dir) - len(want_dir):] != want_dir:
-                continue
-        matches.append(note)
-    if len(matches) == 1:
-        return matches[0], []
-    if len(matches) == 0:
-        return None, []
-    return None, matches
+    """Thin alias over tools/vault_identity.py's resolve_identity() — the
+    path-aware, fail-closed resolver originally written here for the P0-1 fix
+    (2026-08-30), extracted the same day into a shared module so
+    tools/memory_retrieval.py (the Memory Runtime's retrieval layer) doesn't
+    carry a second, independently-maintained copy of the same security-
+    relevant algorithm. Behavior is byte-for-byte unchanged — see
+    vault_identity.resolve_identity()'s own docstring for the full mechanism
+    and the exact incident (a path-qualified Required link silently resolving
+    to a same-stem note in the wrong folder) this fixes. Kept as a
+    same-named wrapper, not just a bare `= vid.resolve_identity`, so this
+    module's own docstrings and comments that still say "resolve_job_target"
+    keep pointing at a real, callable name."""
+    return vid.resolve_identity(vault, raw_link)
 
 
 def parse_qualifier(raw_qualifier: str | None):
