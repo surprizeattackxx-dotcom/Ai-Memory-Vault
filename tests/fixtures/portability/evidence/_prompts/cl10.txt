@@ -1,0 +1,1 @@
+Assess this vault's upgrade state against 09 - Resources/MEMORY_PROTOCOL.md and report it.

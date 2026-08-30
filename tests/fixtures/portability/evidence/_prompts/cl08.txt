@@ -1,0 +1,1 @@
+Run a Level 1 HEALTH_CHECK on this vault per the memory protocol. Report the result state and the coverage. If anything cannot be completed, say so explicitly.
