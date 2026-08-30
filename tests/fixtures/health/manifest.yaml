@@ -11,8 +11,8 @@
 #   verdict               PASS | PARTIAL | BLOCKED
 #   exit_code             0 | 2 | 3
 #   manifest_valid        frontmatter parsed cleanly
-#   errors                exact set of finding IDs in "errors"
-#   deterministic_errors  exact set of validator error IDs the audit proved
+#   errors                exact finding-ID multiset in "errors" (count preserved)
+#   deterministic_errors  exact finding-ID multiset in the auditor's proven set
 #   info_required         subset of finding IDs that MUST appear in "information"
 #   coverage_complete     bool
 #   gates                 subset of gate booleans, each must match
@@ -83,7 +83,7 @@ fixtures:
     verdict: PARTIAL
     exit_code: 2
     manifest_valid: true
-    errors: [HC-COVERAGE-GAP]
+    errors: [HC-COVERAGE-GAP, HC-COVERAGE-GAP, HC-COVERAGE-GAP, HC-COVERAGE-GAP, HC-COVERAGE-GAP, HC-COVERAGE-GAP]
     deterministic_errors: []
     info_required: [HC-BUDGET-INTERRUPTED]
     coverage_complete: false
@@ -123,7 +123,8 @@ fixtures:
     verdict: PARTIAL
     exit_code: 2
     manifest_valid: true
-    errors: [HC-COVERAGE-GAP, HC-FALSE-PASS]
+    # 4 unaccounted files (one HC-COVERAGE-GAP each) + the FALSE-PASS verdict itself
+    errors: [HC-COVERAGE-GAP, HC-COVERAGE-GAP, HC-COVERAGE-GAP, HC-COVERAGE-GAP, HC-FALSE-PASS]
     deterministic_errors: []
     info_required: []
     coverage_complete: false

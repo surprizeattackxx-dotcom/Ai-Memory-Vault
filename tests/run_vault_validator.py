@@ -3,13 +3,16 @@
 
 Pipeline:
   1. Rebuild every fixture vault (tests/fixtures/vaults/build_fixtures.py).
-  2. Run the validator over each fixture and compare state/verdict/finding-ID
-     sets against tests/fixtures/vaults/manifest.yaml.
+2. Run the validator over each fixture and compare state/verdict/finding-ID
+      multisets against tests/fixtures/vaults/manifest.yaml.
   3. Re-run the metadata-schema harness (tests/fixtures/metadata, 10/10).
   4. Print the adversarial-suite coverage map (mechanical vs requires-AI).
 
-Exits nonzero on any mismatch. Deterministic: finding sets are compared by ID
-(not count/order); info checks are subset (`info_required`).
+Exits nonzero on any mismatch. Deterministic: each finding bucket is compared as
+an ID multiset (count preserved, order ignored; the key is the finding ID only,
+location deliberately not part of the comparison) so a validator regression that
+collapses distinct findings into one cannot silently pass. info stays a
+presence-only subset check (`info_required`).
 """
 from __future__ import annotations
 
@@ -17,6 +20,7 @@ import json
 import os
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 import yaml
@@ -56,8 +60,19 @@ def run_validator(vault_dir: Path, use_boot: bool) -> dict:
     return json.loads(proc.stdout)
 
 
-def ids(findings) -> set:
+def finding_ids(findings) -> set:
+    """Presence-only projection (for the info_required subset check)."""
     return {f["id"] for f in findings}
+
+
+def finding_counts(findings) -> Counter:
+    """ID multiset over a finding bucket; multiplicity is part of the contract."""
+    return Counter(f["id"] for f in findings)
+
+
+def ids_multiset(findings) -> list:
+    """Sorted, multiplicity-preserving projection for exact bucket equality."""
+    return sorted(finding_counts(findings).elements())
 
 
 def check_fixture(fixture: dict) -> list[str]:
@@ -75,10 +90,10 @@ def check_fixture(fixture: dict) -> list[str]:
 
     cmp("state", report["vault_state"], fixture["state"])
     cmp("verdict", report["verdict"], fixture["verdict"])
-    cmp("errors", sorted(ids(report["errors"])), sorted(fixture["errors"]))
-    cmp("warnings", sorted(ids(report["warnings"])), sorted(fixture["warnings"]))
-    cmp("flagged", sorted(ids(report["flagged"])), sorted(fixture["flagged"]))
-    info_ids = ids(report["information"])
+    cmp("errors", ids_multiset(report["errors"]), sorted(fixture["errors"]))
+    cmp("warnings", ids_multiset(report["warnings"]), sorted(fixture["warnings"]))
+    cmp("flagged", ids_multiset(report["flagged"]), sorted(fixture["flagged"]))
+    info_ids = finding_ids(report["information"])
     missing_info = [x for x in fixture.get("info_required", []) if x not in info_ids]
     if missing_info:
         problems.append("%s: required infos missing %r (have %s)" % (name, missing_info, sorted(info_ids)))

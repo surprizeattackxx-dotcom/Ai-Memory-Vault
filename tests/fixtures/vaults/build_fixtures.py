@@ -802,6 +802,142 @@ type: nonsense
     return files, {"state": "current", "verdict": "FAIL", "errors": ["SCHEMA-VIOLATION"], "warnings": [], "flagged": [], "info_required": [], "run_boot": True}
 
 
+def fixture_24_surface_ambiguous():
+    # A decoy VAULT-INDEX.md sitting outside its canonical (vault-root) location
+    # must never be silently trusted in place of the real one - regression
+    # fixture for the release-audit-found decoy/basename-hijack bug.
+    files = base_files()
+    files["00 - Inbox/VAULT-INDEX.md"] = """---
+status: active
+project: personal
+type: reference
+---
+# Not the real index
+
+An old exported copy left in the Inbox "for reference" - must never be
+picked over the real root VAULT-INDEX.md for state/parity checks.
+"""
+    return files, {"state": "current", "verdict": "FAIL", "errors": ["SURFACE-AMBIGUOUS"], "warnings": [], "flagged": [], "info_required": [], "run_boot": True}
+
+
+def fixture_25_cycle_superseded_by():
+    # Same defect as fixture 20, expressed through the OTHER field: both notes
+    # use only superseded_by (never supersedes) to claim mutual replacement.
+    # Regression fixture for the release-audit-found _check_cycles() gap that
+    # only graphed the supersedes direction.
+    files = base_files()
+    files["00 - Inbox/c-cycle.md"] = """---
+status: active
+project: personal
+type: reference
+memory_status: superseded
+superseded_by: "[[d-cycle]]"
+---
+# Cycle C
+
+Claims it was replaced by Cycle D.
+"""
+    files["00 - Inbox/d-cycle.md"] = """---
+status: active
+project: personal
+type: reference
+memory_status: superseded
+superseded_by: "[[c-cycle]]"
+---
+# Cycle D
+
+Claims it was replaced by Cycle C.
+"""
+    return files, {"state": "current", "verdict": "FAIL", "errors": ["LC-CYCLE"], "warnings": [], "flagged": [], "run_boot": True}
+
+
+def fixture_26_handoff_status_vocabulary():
+    # Positive: all four documented Handoff statuses accepted. The "claimed"
+    # note also carries an independently invalid `confidence` value, to prove
+    # the sub-protocol exemption stays narrow - it substitutes only `type`
+    # and `status`, every other field on the same note is still validated.
+    files = base_files()
+    for status, slug in (("pending", "a"), ("claimed", "b"), ("done", "c"), ("failed", "d")):
+        extra = "\nconfidence: superduper" if status == "claimed" else ""
+        files["09 - Resources/Handoff/2026-08-17T11%s0-%s.md" % (slug, status)] = """---
+status: %s
+project: meta
+type: task
+from: rook
+to: claude
+priority: normal
+created: 2026-08-17T11:%s0:00%s
+---
+Handoff status vocabulary check: %s.
+""" % (status, slug, extra, status)
+    return files, {"state": "current", "verdict": "FAIL", "errors": ["SCHEMA-VIOLATION"], "warnings": [], "flagged": [], "run_boot": True}
+
+
+def fixture_27_handoff_status_invalid():
+    # Negative: an invalid Handoff status (never documented, not one of the
+    # four) must still fail - the exemption is a closed vocabulary, not an
+    # open door.
+    files = base_files()
+    files["09 - Resources/Handoff/2026-08-17T1200-bogus-status.md"] = """---
+status: bogus
+project: meta
+type: task
+from: rook
+to: claude
+priority: normal
+created: 2026-08-17T12:00:00
+---
+Invalid Handoff status - must still fail schema validation.
+"""
+    return files, {"state": "current", "verdict": "FAIL", "errors": ["SCHEMA-VIOLATION"], "warnings": [], "flagged": [], "run_boot": True}
+
+
+def fixture_28_handoff_done_outside_handoff():
+    # Negative: `status: done` is only valid Handoff-task vocabulary. A note
+    # outside the Handoff folder (even if it also happens to carry
+    # `type: task`) gets no exemption - the folder condition is required,
+    # not just the type condition.
+    files = base_files()
+    files["00 - Inbox/not-handoff-task.md"] = """---
+status: done
+project: personal
+type: task
+---
+# Not actually a Handoff note
+Sits outside 09 - Resources/Handoff/ - `status: done` here is not exempt.
+"""
+    return files, {"state": "current", "verdict": "FAIL", "errors": ["SCHEMA-VIOLATION"], "warnings": [], "flagged": [], "run_boot": True}
+
+
+def fixture_29_duplicate_findings():
+    # Two different notes, one broken link each to the SAME missing target: the
+    # validator must emit TWO WL-UNRESOLVED findings (one per file). Regression
+    # fixture for the test-harness hole where finding buckets were compared as
+    # ID sets — a validator bug that collapsed two findings into one silently
+    # passed, because {WL-UNRESOLVED} == {WL-UNRESOLVED} either way. The harness
+    # now compares ID multisets, so multiplicity is part of the contract.
+    files = base_files()
+    files["00 - Inbox/dup-link-a.md"] = """---
+status: active
+project: personal
+type: reference
+---
+# Dup Link A
+
+See [[Missing-Shared-Target]] for the detail.
+"""
+    files["00 - Inbox/dup-link-b.md"] = """---
+status: active
+project: personal
+type: reference
+---
+# Dup Link B
+
+See [[Missing-Shared-Target]] too.
+"""
+    return files, {"state": "current", "verdict": "FAIL", "errors": ["WL-UNRESOLVED", "WL-UNRESOLVED"], "warnings": [], "flagged": [], "run_boot": True}
+
+
 FIXTURES = [
     ("01-clean", fixture_01_clean),
     ("02-malformed-frontmatter", fixture_02_malformed_frontmatter),
@@ -826,6 +962,12 @@ FIXTURES = [
     ("21-secret", fixture_21_secret),
     ("22-legacy-zone", fixture_22_legacy_zone),
     ("23-handoff-scope", fixture_23_handoff_scope),
+    ("24-surface-ambiguous", fixture_24_surface_ambiguous),
+    ("25-cycle-superseded-by", fixture_25_cycle_superseded_by),
+    ("26-handoff-status-vocabulary", fixture_26_handoff_status_vocabulary),
+    ("27-handoff-status-invalid", fixture_27_handoff_status_invalid),
+    ("28-handoff-done-outside-handoff", fixture_28_handoff_done_outside_handoff),
+    ("29-duplicate-findings", fixture_29_duplicate_findings),
 ]
 
 

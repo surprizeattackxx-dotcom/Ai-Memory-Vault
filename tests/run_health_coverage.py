@@ -6,12 +6,15 @@ Pipeline:
      a vault under vaults/<id>/ plus its Inspection Manifest under
      manifests/<id>.md (outside the counted vault).
   2. Run the auditor over each vault+manifest and compare verdict, exit code,
-     state, error/finding-ID sets, gates, L3 evidence, and the independent
-     recount (expected_files_calculated) against manifest.yaml.
+state, error/finding-ID multisets, gates, L3 evidence, and the independent
+      recount (expected_files_calculated) against manifest.yaml.
   3. Print the HC control matrix (PASS / PARTIAL / BLOCKED / HC-FALSE-PASS).
 
-Exits nonzero on any mismatch. Deterministic: finding sets are compared by ID
-(not count/order); info checks are subset (`info_required`).
+Exits nonzero on any mismatch. Deterministic: each finding bucket is compared as
+an ID multiset (count preserved, order ignored; the key is the finding ID only,
+location deliberately not part of the comparison) so an auditor regression that
+collapses distinct findings into one cannot silently pass. info stays a
+presence-only subset check (`info_required`).
 """
 from __future__ import annotations
 
@@ -19,6 +22,7 @@ import json
 import os
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 import yaml
@@ -52,8 +56,19 @@ def run_auditor(vault_dir: Path, manifest_path: Path) -> tuple[dict, int]:
     return report, proc.returncode
 
 
-def ids(findings) -> set:
+def finding_ids(findings) -> set:
+    """Presence-only projection (for the info_required subset check)."""
     return {f["id"] for f in findings}
+
+
+def finding_counts(findings) -> Counter:
+    """ID multiset over a finding bucket; multiplicity is part of the contract."""
+    return Counter(f["id"] for f in findings)
+
+
+def ids_multiset(findings) -> list:
+    """Sorted, multiplicity-preserving projection for exact bucket equality."""
+    return sorted(finding_counts(findings).elements())
 
 
 def check_fixture(fixture: dict) -> list[str]:
@@ -75,15 +90,15 @@ def check_fixture(fixture: dict) -> list[str]:
     cmp("vault_state", report["vault_state"], fixture["state"])
     cmp("scope", report["scope"], fixture["scope"])
     cmp("verdict", report["verdict"], fixture["verdict"])
-    cmp("errors", sorted(ids(report["errors"])), sorted(fixture["errors"]))
-    cmp("deterministic_errors", sorted(ids(report["deterministic_findings"])), sorted(fixture["deterministic_errors"]))
+    cmp("errors", ids_multiset(report["errors"]), sorted(fixture["errors"]))
+    cmp("deterministic_errors", ids_multiset(report["deterministic_findings"]), sorted(fixture["deterministic_errors"]))
     cmp("coverage_complete", report["coverage_complete"], fixture["coverage_complete"])
     cmp("expected_files_calculated", report["expected_files_calculated"], fixture["expected"])
     for gate, val in fixture.get("gates", {}).items():
         cmp("gate.%s" % gate, report["gates"][gate], val)
     for sec, val in fixture.get("l3_evidence", {}).items():
         cmp("l3.%s" % sec, report["l3_evidence"][sec], val)
-    info_ids = ids(report["information"])
+    info_ids = finding_ids(report["information"])
     missing_info = [x for x in fixture.get("info_required", []) if x not in info_ids]
     if missing_info:
         problems.append("%s: required infos missing %r (have %s)" % (name, missing_info, sorted(info_ids)))

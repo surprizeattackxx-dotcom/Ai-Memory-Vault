@@ -7,9 +7,13 @@
 # Fields compared by tests/run_vault_validator.py:
 #   state            vault_state in the report (current|partial|legacy|incompatible)
 #   verdict          PASS | FAIL | BLOCKED
-#   errors           exact set of finding IDs expected in "errors"
-#   warnings         exact set of finding IDs expected in "warnings"
-#   flagged          exact set of finding IDs expected in "flagged"
+#   errors           exact finding-ID multiset expected in "errors": an ID listed
+#                    twice must appear twice — a validator bug that collapses two
+#                    distinct findings into one fails the check. Comparison keys
+#                    on the finding ID only; location is deliberately not part of
+#                    the contract.
+#   warnings         exact finding-ID multiset expected in "warnings"
+#   flagged          exact finding-ID multiset expected in "flagged"
 #   info_required    subset of finding IDs that MUST appear in "information"
 #   structural_excluded  exact files_excluded count, when set
 #   run_boot         false only for fixtures run without --boot
@@ -165,7 +169,8 @@ fixtures:
     name: stripped-index
     state: current
     verdict: FAIL
-    errors: [PARITY-INDEX-REGRESSED]
+    # one finding per missing rule marker; this index is stripped of all 7
+    errors: [PARITY-INDEX-REGRESSED, PARITY-INDEX-REGRESSED, PARITY-INDEX-REGRESSED, PARITY-INDEX-REGRESSED, PARITY-INDEX-REGRESSED, PARITY-INDEX-REGRESSED, PARITY-INDEX-REGRESSED]
     warnings: []
     flagged: []
     run_boot: true
@@ -207,8 +212,61 @@ fixtures:
     name: handoff-scope
     state: current
     verdict: FAIL
-    errors: [SCHEMA-VIOLATION]
+    # 3 genuine schema findings on bad-note.md: missing `project` (reported once
+    # by the required-field pass and once by jsonschema) + invalid `type`
+    errors: [SCHEMA-VIOLATION, SCHEMA-VIOLATION, SCHEMA-VIOLATION]
     warnings: []
     flagged: []
     info_required: []
+    run_boot: true
+  - id: "24"
+    name: surface-ambiguous
+    state: current
+    verdict: FAIL
+    errors: [SURFACE-AMBIGUOUS]
+    warnings: []
+    flagged: []
+    info_required: []
+    run_boot: true
+  - id: "25"
+    name: cycle-superseded-by
+    state: current
+    verdict: FAIL
+    errors: [LC-CYCLE]
+    warnings: [LC-PAIR-UNRECIPROCATED]
+    flagged: []
+    run_boot: true
+  - id: "26"
+    name: handoff-status-vocabulary
+    state: current
+    verdict: FAIL
+    errors: [SCHEMA-VIOLATION]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "27"
+    name: handoff-status-invalid
+    state: current
+    verdict: FAIL
+    errors: [SCHEMA-VIOLATION]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "28"
+    name: handoff-done-outside-handoff
+    state: current
+    verdict: FAIL
+    # 2 genuine schema findings on the one note: `status: done` AND `type: task`
+    # both violate the global enums (no exemption applies outside Handoff/)
+    errors: [SCHEMA-VIOLATION, SCHEMA-VIOLATION]
+    warnings: []
+    flagged: []
+    run_boot: true
+  - id: "29"
+    name: duplicate-findings
+    state: current
+    verdict: FAIL
+    errors: [WL-UNRESOLVED, WL-UNRESOLVED]
+    warnings: []
+    flagged: []
     run_boot: true

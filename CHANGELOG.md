@@ -1,5 +1,106 @@
 # Changelog
 
+## v3.6.8
+
+Closes a blind spot found while independently re-verifying the v3.6.6/v3.6.7
+batch: both test harnesses compared finding buckets with **ID sets** —
+`{f["id"] for f in findings}` — a choice the docstrings even documented
+("finding sets are compared by ID, not count/order"). Location was deliberately
+not part of the key (manifest expectations are plain ID lists; a finding is
+location-agnostic in the contractual sense), but the **count-drop was not
+deliberate**: a validator regression that collapses two distinct findings into
+one — an emit-path dedup, a dict keyed by ID, a future "findings as a set"
+refactor — was completely invisible to the suite, because
+`{WL-UNRESOLVED, WL-UNRESOLVED}` and `{WL-UNRESOLVED}` are the same set. Nothing
+in the tools triggered it yet, but the harnesses could not have noticed the day
+one of them did — and these two harnesses are the release gate for tooling
+correctness.
+
+**Fixed:**
+- Both harnesses (`tests/run_vault_validator.py`, `tests/run_health_coverage.py`)
+  now compare each exact bucket (`errors`/`warnings`/`flagged`, plus
+  `deterministic_findings` in the health harness) as a **normalized ID
+  multiset**: `collections.Counter` over finding IDs, compared through sorted
+  `.elements()` equality. Count preserved, order still ignored, key still the
+  finding ID only — location stays deliberately out of the contract, now
+  documented as such in both docstrings and both manifests' field headers.
+  A collapse into one finding now fails with a plain count mismatch.
+  `info_required` is untouched: presence-only subset by design (the info bucket
+  legitimately carries extras, e.g. fixture 22's three infos).
+- **Regression fixture 29 `duplicate-findings`** (vault suite): two different
+  notes, one broken link each to the same missing target. Expected
+  `errors: [WL-UNRESOLVED, WL-UNRESOLVED]` — exactly twice. A validator that
+  emits one `WL-UNRESOLVED` for both files fails under the multiset comparison;
+  under the old set comparison it passed trivially. First fixture in either
+  suite with a repeated ID in an exact bucket.
+
+**The switch immediately forced three previously-invisible manifest errors in
+the health suite out into the open** (the same silent-collapse class the audit
+targets, in the very manifests the gate loads): h05 expected one `HC-COVERAGE-GAP`
+but the auditor genuinely emits one per unaccounted file (6 files);
+h08 expected one gap + `HC-FALSE-PASS` but emits 4 gap findings + the verdict
+finding; and h09 emitted **two identical `HC-MANIFEST-MALFORMED` for one
+malformed manifest** — that one was not a genuine multiplicity but a real
+auditor defect: `stub_invalid()` emitted the finding as blind bookkeeping and
+the verdict gate in `approve()` emitted it again. Fixed the defect rather than
+enshrining it: the stub no longer emits (it only fills recorded state so
+`report()` can run; `approve()` emits the finding exactly once on every path),
+and `AUDITOR_VERSION` bumped `1.1.0` → `1.1.1`. h05/h08 expectations were
+corrected to the verified per-file counts in the health fixture manifest.
+
+**Evidence, not assumption:** before making any change, an independent probe —
+a clean vault with two planted broken-link notes — confirmed the untouched tool
+already emitted two `WL-UNRESOLVED` findings on distinct paths
+(`00 - Inbox/dup-link-a.md`, `00 - Inbox/dup-link-b.md`), that the set
+projection made a simulated one-finding collapse indistinguishable from the real
+two, and that the multiset comparison rejects the collapse.
+
+**Not touched by this change:** `validate-vault.py` (its v3.6.6/v3.6.7 changes
+stand; the multiset switch surfaced nothing further on the validator side —
+`WL-UNRESOLVED`, `SCHEMA-VIOLATION` and `PARITY-INDEX-REGRESSED` are all emitted
+per-entity), `MEMORY_PROTOCOL.md` (unchanged; no project version bump — this is
+tooling-integrity, not a semantic change), `tests/test_surface_resolution.py`
+(its set checks are presence/location checks by design), and the auditor's own
+`recorded_keys` set (correct membership use). The one tool file this change
+touched is `audit_health_coverage.py` — the h09 double-emission fix above.
+
+**Regenerated:** all 29 vault fixtures. Full suite re-run: 29/29 vault fixtures
++ metadata harness PASS, 11/11 health fixtures PASS, `test_surface_resolution.py`
+PASS, real-vault validation PASS with zero errors.
+
+## v3.6.7
+
+Adds the general pattern behind the P1 Handoff fix in v3.6.6: **sub-protocol vocabulary exemption**, not a one-off "Handoff status exception." A sub-protocol is a documented, scoped departure from the global metadata vocabulary — Handoff.md's own `pending → claimed → done | failed` status lifecycle is the first instance, never overlapping the global `status` enum (`active | completed | parked | idea | archived`). The pattern: exempt only the specific field(s) the sub-protocol redefines, only under the exact condition that identifies membership in it, only to that sub-protocol's own closed vocabulary — never the whole note, never an open-ended allowance. `MEMORY_PROTOCOL.md` unchanged, no version bump — this enforces an already-documented sub-protocol, it doesn't change its semantics.
+
+**Fixed:**
+- `_schema_errors()`'s existing Handoff `type: task` exemption (v3.6.6) covered `type` only — a Handoff task note's `status` still had to satisfy the *global* enum, so any of the sub-protocol's own documented values other than the ones that happened to already exist in fixtures would fail. In practice this meant `pending`/`claimed` were completely untested and `status: done` on the two real Handoff files in the actual vault was a live, previously-hidden `SCHEMA-VIOLATION` (found while investigating the v3.6.6 fix's own real-vault sanity check). Extended the exemption to substitute `status` too, but only when the note's actual value is one of the four documented Handoff statuses (`HANDOFF_STATUS_VALUES`) — a genuinely invalid value (a typo, or anything not in that closed set) is left unsubstituted and still fails the global enum, same as before.
+- Verified directly, not just via the suite: the real vault's two Handoff `status: done` findings are gone (`Verdict: PASS`, zero errors) without loosening validation anywhere else — confirmed by a companion fixture that also carries an independently invalid `confidence` value on one of the four exempted notes, which still fails.
+
+**Added — regression fixtures (25 → 28):**
+- `26-handoff-status-vocabulary` — all four documented statuses (`pending`/`claimed`/`done`/`failed`) accepted on four separate Handoff task notes; the `claimed` note also carries `confidence: superduper` (invalid), which must still fail — proves the exemption doesn't bypass unrelated schema checks on the same note.
+- `27-handoff-status-invalid` — a Handoff task note with `status: bogus` (never documented) must still fail; the exemption is a closed vocabulary, not an open door.
+- `28-handoff-done-outside-handoff` — `status: done` on a note outside `09 - Resources/Handoff/` (even one that also carries `type: task`) must still fail; the folder condition is required, not just the type condition.
+
+**Not touched, as instructed:** the two real Handoff files (`test-handoff.md`, `2026-08-17T1035-test-handoff.md`) — their `status: done` was already correct sub-protocol vocabulary; nothing needed fixing there, only the tooling that was wrongly flagging it.
+
+**Regenerated:** all 28 vault fixtures (23 existing + fixtures 24–25 from v3.6.6 + 3 new this pass). Full suite re-run: 28/28 vault fixtures + metadata harness PASS, 11/11 health fixtures PASS, `test_surface_resolution.py` PASS, real-vault validation PASS with zero errors.
+
+## v3.6.6
+
+Fixes the P0/P1 findings from a 2026-08-29 validator trust audit — the concern that `tools/validate-vault.py` and `tools/audit_health_coverage.py`, as deterministic re-implementations of protocol semantics in code, are themselves a second place things can silently drift or break, with no "read it and see" way to catch it the way a prose mirror allows. Three of the five findings produce a false `PASS`; the sharpest of the three was in code shipped two commits ago in this same repo, found by a genuinely fresh subagent with no memory of writing it. `MEMORY_PROTOCOL.md` is unchanged — every fix here makes the tooling correctly enforce rules that were already written down, not new rules. No fixture version bump was required (the fixtures already track canonical `MEMORY_PROTOCOL.md` dynamically), but `validate-vault.py`/`audit_health_coverage.py`'s own internal version strings move `1.0.0` → `1.1.0` to mark the behavior change.
+
+**Fixed (P0):**
+- **Decoy-file hijack.** `is_structural()`, `detect_state()`, and `check_parity()` matched `VAULT-INDEX.md`/`Active Priorities.md`/`Daily Note Template.md`/`MEMORY_PROTOCOL.md` by basename alone, anywhere in the vault, and picked "the" file via `next()` on a path-sorted list — whichever file with that basename sorted first, not necessarily the one at the canonical location. A file with a protected basename anywhere earlier in sort order (an old backup, an export, a deliberate decoy) silently hijacked state and parity detection away from the real file. Reproduced directly: a genuinely broken root `VAULT-INDEX.md` plus a fully-compliant decoy in `00 - Inbox/` produced `State: current, Verdict: PASS` while the real, broken index was never touched. Fixed with a new `locate_surfaces()` step that pins each critical surface to its one canonical location and flags any other file sharing that basename as a new `SURFACE-AMBIGUOUS` error rather than silently picking one. `audit_health_coverage.py` inherited this via the shared `Vault` class and is fixed by the same change. New regression fixture `24-surface-ambiguous`.
+- **`_check_cycles()` missed `superseded_by`-only cycles.** The cycle-detection graph only added edges for the `supersedes` field, on the reasoning that `superseded_by` on the mirror side of a reciprocated pair is "the same fact, not a new edge" — true for a *reciprocated* pair, but it meant two notes that assert mutual replacement using *only* `superseded_by` on both sides (arguably the more natural way to write it, since the schema requires `superseded_by` to carry `memory_status: superseded`) formed a real cycle the detector never saw. The only code path that noticed called it a `warning` ("without supersedes back-reference"), mischaracterizing an unresolvable circular claim as a cosmetic missing-field issue — warnings never fail verdict, so the run reported `PASS`. Found by a fresh, unprimed subagent explicitly red-teaming for a false PASS, independently reproduced. Fixed by graphing both fields in their normalized "dominates" direction (`superseded_by` edges added reversed) — a properly reciprocated pair now produces the identical edge from both sides (harmless duplication), while a pair expressed entirely through `superseded_by` produces the real 2-cycle the DFS already knows how to catch. Verified a legitimate one-directional reciprocated pair still produces zero false `LC-CYCLE`. New regression fixture `25-cycle-superseded-by`.
+
+**Fixed (P1):**
+- **The incompatible-state detector missed the exact bug it exists to catch.** `DEFAULT_COLLISION_RE` required "treated as" (past tense); the actual historical bug this session found and fixed said "Absent = **treat as** `current`" (present tense) — zero match. The regex was also case-sensitive with no `re.I`, so the same real sentence, capitalized at the start of a line ("Absent = treat as..."), missed on that basis too, independent of the tense issue. `DEFAULT_NEG_RE` (the negation check that prevents a *correctly-worded* denial from being misread as a collision) had the identical case-sensitivity gap in the false-positive direction. Fixed both regexes to `treats? as|treated as` and added `re.I` to both. Verified: the exact historical bug phrasing now matches; the current, correct phrasing ("never equivalent to...") still doesn't false-trigger.
+- **Old-vocabulary and Handoff exemptions skipped *all* schema validation, not just the field they were meant to exempt.** `_schema_errors()` returned early for `memory_status: active/stale/archived` notes and Handoff `type: task` notes, before the JSON-Schema validator ever ran — so a note with `memory_status: active` (correctly exempt from just that enum) and an independently invalid `confidence: superduper` produced zero `SCHEMA-VIOLATION` findings; the confidence problem was completely invisible. Fixed by substituting a valid placeholder for just the exempted field before validating, rather than skipping validation of the whole note — and switched from `Draft202012Validator.validate()` (raises and stops on the first error) to `.iter_errors()` (collects all of them), closing a related latent gap where a note with two *unrelated* schema problems would only ever report the first one found.
+
+**Not fixed this pass (documented, P2/P3, same as last time's precedent):** zero fixture coverage for `IDX-MISSING`/`ORPHAN`/secret-value-shape detection; security regexes hardcoding `jarvis|claude|opencode` instead of the product's own supported custom-agent-naming feature; `audit_health_coverage.py`'s `FINDING_RE`/`split_reason()` format brittleness (false alarms — `HC-FINDING-MISSED`/`HC-COVERAGE-GAP` — on manifests that are actually fine, the opposite failure direction from everything else in this entry); security findings hardcoded to `info` severity, never failing verdict (very likely intentional — flag risk, don't adjudicate intent — not counted as a defect).
+
+**Regenerated:** all 25 vault fixtures (23 existing + 2 new) and 11 health fixtures. Full suite re-run after every individual fix, not just at the end: 25/25 vault fixtures + metadata harness PASS, 11/11 health fixtures + control matrix PASS.
+
 ## v3.6.5
 
 Fixes the P0 and P1 findings from a 2026-08-29 final adversarial release audit. No new capability — this is a correctness pass on gaps the audit found by actually running the tooling against the real vault and a fresh adversarial agent, not by re-reading documentation.

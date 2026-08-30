@@ -70,9 +70,10 @@ PROTOCOL_MIGRATION_RE = re.compile(r"memory_status:\s*active.{0,120}read as\s*`c
 OLD_VOCAB_BULLET_RE = re.compile(r"memory_status[^\n]{0,60}(?:\u2014|:|\u2013)\s*`active`", re.I)
 # "absent memory_status is equivalent to current" (a default claim)
 DEFAULT_COLLISION_RE = re.compile(
-    r"(?:memory_status|field|absent)[^\n]{0,60}(?:defaults? to|default is|reads as|means|treated as)[^\n]{0,60}`?current`?"
+    r"(?:memory_status|field|absent)[^\n]{0,60}(?:defaults? to|default is|reads as|means|treats? as|treated as)[^\n]{0,60}`?current`?",
+    re.I,
 )
-DEFAULT_NEG_RE = re.compile(r"(?:never|not|no[ \n])")
+DEFAULT_NEG_RE = re.compile(r"(?:never|not|no[ \n])", re.I)
 
 FENCE_RE = re.compile(r"^```+", re.M)
 INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
@@ -89,6 +90,18 @@ SUSPECT_BODY_RE = [
 SUSPECT_META_RE = re.compile(r"(?i)(SYSTEM:|grant(?: me)? full (?:authority|access)|you are (?:now )?(?:jarvis|claude))")
 SECRET_KEY_RE = re.compile(r"(?i)(password|passwd|token|secret|api[_-]?key|apikey|credential)")
 SECRET_VALUE_RE = re.compile(r"(?i)(sk-|eyJ|AKIA|ghp_|gho_|ya29\.|AKIA[0-9A-Z]{16})")
+
+# ---------------------------------------------------- sub-protocol vocabulary
+# A sub-protocol is a documented, scoped exception to the global metadata
+# vocabulary (Handoff.md's own "pending -> claimed -> done | failed" status
+# lifecycle, never overlapping the global status enum, is the first instance).
+# The pattern: exempt ONLY the specific field(s) the sub-protocol redefines,
+# ONLY under the exact condition that identifies membership in it, and ONLY
+# to the sub-protocol's own closed vocabulary - never the whole note, never
+# an open-ended allowance. A future sub-protocol adds a new (condition,
+# {field: {allowed values}}) entry here rather than inventing its own
+# early-return.
+HANDOFF_STATUS_VALUES = {"pending", "claimed", "done", "failed"}
 
 # --------------------------------------------------------------- state (E)
 CHECK_IDS = ["frontmatter", "lifecycle", "wikilinks", "structural", "state", "parity", "security", "duplicates"]
@@ -135,6 +148,8 @@ class Vault:
         self.state = None
         self.checks_completed = ["discovery"]
         self.parity_checks = []
+        self.canonical_index = None
+        self.canonical_protocol = None
 
     # ------------------------------------------------------------- discovery
     def discover(self):
@@ -171,7 +186,9 @@ class Vault:
     # ----------------------------------------------------------- classifications
     def is_structural(self, note) -> bool:
         parts = note["dir_parts"]
-        if note["basename"] in (VAULT_INDEX_NAME, ACTIVE_PRIORITIES_NAME, DAILY_TEMPLATE_NAME):
+        if note["basename"] in (VAULT_INDEX_NAME, ACTIVE_PRIORITIES_NAME) and parts == []:
+            return True
+        if note["basename"] == DAILY_TEMPLATE_NAME and parts == ["01 - Daily Notes"]:
             return True
         if note["basename"] == PROTOCOL_NAME and parts and RESOURCES_RE.match(parts[-1]):
             return True
@@ -180,6 +197,32 @@ class Vault:
         if note["meta"].get("memory_role") == "structural":
             return True
         return False
+
+    def locate_surface(self, basename, dir_check):
+        """Return (canonical note or None, [other notes sharing this basename
+        elsewhere]). A misplaced duplicate is never silently trusted — see
+        locate_surfaces() and SURFACE-AMBIGUOUS."""
+        candidates = [n for n in self.notes if n["basename"] == basename]
+        canonical = [n for n in candidates if dir_check(n["dir_parts"])]
+        others = [n for n in candidates if not dir_check(n["dir_parts"])]
+        return (canonical[0] if canonical else None), others
+
+    def locate_surfaces(self):
+        """Pin the vault's critical protocol surfaces to their one canonical
+        location each, instead of picking whichever file with a protected
+        basename happens to sort first (self.notes is path-sorted, so a
+        misplaced/decoy file could otherwise silently hijack state and parity
+        detection away from the real one). Called once; detect_state() and
+        check_parity() both read the result rather than re-deriving it."""
+        self.canonical_index, index_dupes = self.locate_surface(VAULT_INDEX_NAME, lambda p: p == [])
+        self.canonical_protocol, protocol_dupes = self.locate_surface(
+            PROTOCOL_NAME, lambda p: bool(p) and RESOURCES_RE.match(p[-1]) is not None
+        )
+        for basename, dupes in ((VAULT_INDEX_NAME, index_dupes), (PROTOCOL_NAME, protocol_dupes)):
+            for n in dupes:
+                self.emit("SURFACE-AMBIGUOUS", "error", n["rel"],
+                          "a file named %s exists outside its canonical location; "
+                          "never used for state/parity checks in place of the real one" % basename)
 
     def rel(self, path: Path) -> str:
         return "/".join(path.relative_to(self.root).parts)
@@ -242,16 +285,30 @@ class Vault:
         errors = []
         if missing:
             errors.append("required field missing: %s" % ", ".join(missing))
+        # Old-vocab memory_status and the Handoff sub-protocol's own `type`/
+        # `status` vocabulary are exempt from THEIR OWN enum check (reported
+        # by lifecycle / the sub-protocol instead) but every OTHER field on
+        # the same note must still be validated - substitute a valid
+        # placeholder for just the exempted field(s) rather than skipping
+        # validation of the whole note. See "sub-protocol vocabulary" above.
+        validate_meta = meta
         if isinstance(ms, str) and ms in ("active", "stale", "archived"):
-            return errors  # old-vocab values are reported by lifecycle, not the schema enum
-        if self.in_handoff_folder(note) and meta.get("type") == "task":
-            return errors  # Handoff sub-protocol vocabulary (see Handoff.md)
-        try:
-            Draft202012Validator(SCHEMA, format_checker=jsonschema.FormatChecker()).validate(meta)
-            return errors
-        except jsonschema.ValidationError as exc:
+            validate_meta = dict(validate_meta)
+            validate_meta["memory_status"] = "current"
+        if self.in_handoff_folder(note) and validate_meta.get("type") == "task":
+            validate_meta = dict(validate_meta)
+            validate_meta["type"] = "reference"
+            # Handoff's own status lifecycle (Handoff.md: pending -> claimed
+            # -> done | failed) is a closed, documented, non-overlapping
+            # vocabulary - substitute only if the note's actual value is one
+            # of those four; anything else (a genuine typo/invalid value)
+            # is left as-is and still fails the global enum below.
+            if validate_meta.get("status") in HANDOFF_STATUS_VALUES:
+                validate_meta["status"] = "active"
+        validator = Draft202012Validator(SCHEMA, format_checker=jsonschema.FormatChecker())
+        for exc in validator.iter_errors(validate_meta):
             errors.append("schema: %s" % exc.message)
-            return errors
+        return errors
 
     def _disputed(self, note):
         v = note["meta"].get("memory_status")
@@ -323,14 +380,21 @@ class Vault:
                       % (src["stem"], tgt["stem"], mirror))
 
     def _check_cycles(self, edges):
-        # Graph only the forward (supersedes) direction. A reciprocated pair
-        # (A supersedes B while B superseded_by A) is the intended mirror, not a
-        # cycle, so superseded_by edges must not be added to the graph.
+        # Graph the normalized "dominates" direction for BOTH fields: a
+        # `supersedes` edge src->tgt means src dominates tgt; a `superseded_by`
+        # edge src->tgt means the opposite (tgt dominates src), so it's added
+        # reversed. A properly reciprocated pair (A supersedes B, B
+        # superseded_by A) then produces the identical edge from both sides -
+        # harmless duplication, not a spurious cycle. A pair expressed entirely
+        # through superseded_by on both sides (no supersedes anywhere) produces
+        # a real 2-cycle here that a supersedes-only graph could never see.
         from collections import defaultdict
         graph = defaultdict(list)
         for src, tgt, field in edges:
             if field == "supersedes":
                 graph[src["stem"].lower()].append(tgt["stem"].lower())
+            elif field == "superseded_by":
+                graph[tgt["stem"].lower()].append(src["stem"].lower())
         WHITE, GRAY, BLACK = 0, 1, 2
         color = defaultdict(int)
 
@@ -423,8 +487,9 @@ class Vault:
 
     # ---------------------------------------------------------------- E: state
     def detect_state(self):
-        index_note = next((n for n in self.notes if n["basename"] == VAULT_INDEX_NAME), None)
-        protocol = next((n for n in self.notes if n["basename"] == PROTOCOL_NAME), None)
+        self.locate_surfaces()
+        index_note = self.canonical_index
+        protocol = self.canonical_protocol
         surfaces = {}
         if protocol is not None:
             surfaces["protocol"] = {"path": protocol["rel"], "text": protocol["text"]}
@@ -502,7 +567,7 @@ class Vault:
     def check_parity(self):
         completed = []
         self.parity_checks = []
-        protocol = next((n for n in self.notes if n["basename"] == PROTOCOL_NAME), None)
+        protocol = self.canonical_protocol
         if protocol is not None:
             vault_text = norm_crlf(protocol["text"])
             canon_text = norm_crlf(_read_text(REPO_ROOT / PROTOCOL_NAME))
@@ -527,7 +592,7 @@ class Vault:
             self.parity_checks.append({"check": "p1", "surface": PROTOCOL_NAME, "status": "missing",
                                        "detail": "current vault has no protocol copy"})
         completed.append("parity_p1")
-        index_note = next((n for n in self.notes if n["basename"] == VAULT_INDEX_NAME), None)
+        index_note = self.canonical_index
         if index_note is not None and self.state != "legacy":
             text = index_note["text"]
             p2_status = None
@@ -635,7 +700,7 @@ class Vault:
         else:
             verdict = "PASS"
         return {
-            "validator_version": "1.0.0",
+            "validator_version": "1.1.0",
             "protocol_version_expected": EXPECTED_PROTOCOL_VERSION,
             "vault_path": str(self.root),
             "boot_path": str(self.boot) if self.boot else None,

@@ -40,7 +40,7 @@ from pathlib import Path
 
 import yaml
 
-AUDITOR_VERSION = "1.0.0"
+AUDITOR_VERSION = "1.1.1"
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = REPO_ROOT / "tools" / "validate-vault.py"
 
@@ -186,7 +186,9 @@ class Audit:
         }
         self.recorded["partition"] = {"inspected": set(), "skipped": set(), "excluded": set(),
                                       "union": set(), "declared": {}}
-        self.emit("HC-MANIFEST-MALFORMED", "error", "", detail)
+        # No HC-MANIFEST-MALFORMED emit here: this stub is bookkeeping only. The
+        # finding is emitted exactly once by the verify gate in approve(); emitting
+        # it here too double-reports one malformed manifest as two findings.
 
     def sorted_findings(self):
         return sorted(self.findings, key=lambda f: (f["id"], f["path"] or "", f["message"]))
