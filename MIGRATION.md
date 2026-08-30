@@ -41,13 +41,16 @@ Known structural paths (`VAULT-INDEX.md`, `Active Priorities.md`, `01 - Daily No
 
 ## Phase 5 — Protocol synchronization
 
-Update, in this order: `MEMORY_PROTOCOL.md` (canonical) → `VAULT-INDEX.md` → `CLAUDE.md` → any templates → `ai-memory-vault.md`'s embedded copies. The canonical file changes first; every other representation follows it — never the reverse, or you end up maintaining competing versions of the same rules again.
+Update, in this order: `MEMORY_PROTOCOL.md` (canonical) → `VAULT-INDEX.md` → `CLAUDE.md` → any templates → `ai-memory-vault.md`'s embedded copies → `schema/memory-metadata.schema.yaml`'s `x-protocol-version` (see `MEMORY_PROTOCOL.md`'s "Machine-readable schema"). The canonical file changes first; every other representation follows it — never the reverse, or you end up maintaining competing versions of the same rules again.
+
+**This order is not a formality — skipping a step in it is exactly how a real drift happened.** A 2026-08-29 release audit found `MEMORY_PROTOCOL.md` had been advanced three sub-versions (v3.6.2–v3.6.4: the HEALTH_CHECK manifest requirement, the Job dependency declaration grammar, the candidate-promotion determinism test) while `VAULT-INDEX.md` and `CLAUDE.md` — the second and third items in this exact list — were never touched. Worse, the mechanical parity checker's own marker list had gone stale along with them, so it kept reporting the vault `current` throughout. Don't skip a step in this order because a change "doesn't seem template-relevant" — that's precisely the judgment call that produced the gap.
 
 ## Phase 6 — Validation
 
 Before calling the vault `current`:
 
 - Run a systematic diff between canonical and embedded/template text where word-for-word parity is required — not a visual spot-check.
+- Confirm `schema/memory-metadata.schema.yaml`'s `x-protocol-version` matches `MEMORY_PROTOCOL.md`'s `version:` — a schema-version mismatch means the schema is stale relative to the protocol and must not be treated as authoritative until bumped and diffed (see `MEMORY_PROTOCOL.md`'s "Machine-readable schema").
 - Confirm the vault isn't in an `incompatible` state (see `MEMORY_PROTOCOL.md`) before declaring it `current` — if it is, reconcile the conflicting surfaces first; never overwrite one side by guessing which was intended.
 - Run the Memory Health Check (Level 1 at minimum) and confirm it reports cleanly, or that every finding is understood and expected.
 - Confirm every flagged `memory_status: archived` note from Phase 3 has actually been reviewed, not just listed.

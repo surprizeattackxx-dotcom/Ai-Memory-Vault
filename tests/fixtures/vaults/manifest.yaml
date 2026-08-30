@@ -180,9 +180,9 @@ fixtures:
   - id: "20"
     name: cycle
     state: current
-    verdict: PASS
-    errors: []
-    warnings: [LC-CYCLE, LC-PAIR-UNRECIPROCATED]
+    verdict: FAIL
+    errors: [LC-CYCLE]
+    warnings: [LC-PAIR-UNRECIPROCATED]
     flagged: []
     run_boot: true
   - id: "21"

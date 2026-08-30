@@ -41,6 +41,9 @@ INDEX_RULE_MARKERS = [
     "Trust model",
     "`status` and `memory_status`",
     "Structural files are exempt",
+    "Inspection Manifest",
+    "Jobs and Required Dependencies",
+    "can never corroborate another inference",
 ]
 
 SCHEMA = yaml.safe_load((REPO_ROOT / "schema/memory-metadata.schema.yaml").read_text(encoding="utf-8"))
@@ -344,7 +347,7 @@ class Vault:
         for s, t, _ in edges:
             if color[s["stem"].lower()] == WHITE:
                 if dfs(s["stem"].lower()):
-                    self.emit("LC-CYCLE", "warning", s["rel"], "cycle detected in supersedes/superseded_by chain")
+                    self.emit("LC-CYCLE", "error", s["rel"], "cycle detected in supersedes/superseded_by chain — malformed, not a valid supersession (see MEMORY_PROTOCOL.md Metadata)")
                     return
 
     # ---------------------------------------------------------------- C: wikilinks

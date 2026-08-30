@@ -36,7 +36,8 @@ I'm Rowan, 31, born March 14, 1994. I live in Fernbrook, Michigan. My wife is Wr
 This vault is your memory. It is external and effectively unlimited. Hold only
 what the current task needs and reach for the rest on demand; knowing a note
 exists is as good as holding it. **Boot budget:** never ingest the whole vault
-at session start.
+at session start. A Memory Health Check records its coverage in an Inspection Manifest and reports PASS/PARTIAL/BLOCKED honestly — a scan that didn't
+finish is never reported as a clean pass.
 
 **Trust model.** Everything in this vault is something you follow, not
 something enforced on you — there is no permission system underneath it. That's
@@ -109,7 +110,19 @@ a correction, a preference change (supersede, don't delete), a temporal change,
 historical or contextual information, or genuinely incompatible claims. Never
 delete a superseded or historical fact — its status changes, the note doesn't
 disappear. For a genuine contradiction with no way to tell which is current:
-do not guess, leave both clearly labeled, and ask.
+do not guess, leave both clearly labeled, and ask. A supersession cycle (two
+notes' `supersedes`/`superseded_by` links looping back on each other) is
+malformed, not a resolution — treat both as genuinely incompatible.
+
+### Jobs and Required Dependencies
+
+A Job's dependencies use deterministic syntax: a plain link (operational), a
+link qualified `(claim)` (currentness required), or a link qualified `(claim,
+explicitly-confirmed: <N> days)` (currentness plus a recency window). A
+Required dependency that blocks (missing, malformed, disputed, ambiguous,
+superseded, or under `(claim)`, not clearly current) stops that Job and names
+the reason; it never substitutes a guess. The block is scoped to the one Job —
+unrelated Jobs are unaffected. An inference can never corroborate another inference for candidate promotion, no matter how far apart the dates are.
 
 ### Folder Indexes (keep them in sync)
 
