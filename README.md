@@ -1,594 +1,409 @@
 # AI Memory Vault
 
-**A durable, local-first memory system for AI agents — built around plain Markdown, explicit authority, deterministic retrieval, and fail-closed behavior.**
+A local-first, file-based memory system designed for **durable storage, deterministic retrieval, provenance, lifecycle safety, and adversarial validation**.
 
-AI Memory Vault gives an AI agent persistent memory without turning that memory into an opaque database or trusting whatever file happens to score highest.
+AI Memory Vault treats memory as data—not as an opaque chatbot feature. The vault is made of ordinary Markdown files with explicit metadata, while retrieval and validation layers provide increasingly powerful ways to find information without allowing search results, scores, indexes, or semantic similarity to become sources of truth.
 
-The system stores memory in an ordinary Obsidian-compatible vault while providing a structured protocol for:
+## What It Is
 
-* persistent user and project memory
-* memory lifecycle and supersession
-* contradiction handling
-* deterministic identity resolution
-* indexed retrieval
-* optional semantic retrieval
-* Job-scoped context
-* provenance and memory health
-* adversarial validation
-* safe fallback when indexes become stale or unavailable
+AI Memory Vault is a structured memory vault built around four principles:
 
-The core principle is simple:
+* **Files are the durable memory.**
+* **Identity is resolved explicitly and fail-closed.**
+* **Lifecycle state is authoritative and independent of retrieval.**
+* **Accelerators may improve discovery, but can never manufacture truth.**
 
-> **Retrieval can suggest. Memory authority decides.**
+The system supports both traditional lexical retrieval and optional semantic retrieval using locally executed embeddings.
 
-A search score, embedding similarity, index entry, or filename can never promote a memory, override its lifecycle, or manufacture acceptance.
+The architecture is intentionally layered so that faster or more sophisticated retrieval mechanisms can be added without changing what constitutes an accepted memory.
 
 ---
 
-## What This Is
-
-AI Memory Vault is a **local memory architecture for AI agents**.
-
-It separates four concerns that are commonly mixed together in AI memory systems:
-
-| Layer         | Responsibility                                                          |
-| ------------- | ----------------------------------------------------------------------- |
-| **Storage**   | Markdown files in a normal Obsidian vault                               |
-| **Identity**  | Determine which real note a reference actually means                    |
-| **Retrieval** | Find potentially relevant notes efficiently                             |
-| **Authority** | Decide whether a note is current, historical, disputed, candidate, etc. |
-
-That separation is intentional.
-
-A note being easy to find does not make it true.
-
-A note having a high semantic similarity does not make it authoritative.
-
-An index entry does not become a source of truth simply because it is faster than scanning the vault.
-
----
-
-## Architecture
+## Core Architecture
 
 ```text
-                         AI AGENT
-                            │
-                            ▼
-                  ┌─────────────────────┐
-                  │   Memory Protocol   │
-                  │ identity / lifecycle│
-                  │ safety / authority  │
-                  └──────────┬──────────┘
-                             │
-                             ▼
-                    ┌────────────────┐
-                    │ MemoryRuntime  │
-                    └───────┬────────┘
-                            │
-              ┌─────────────┼─────────────┐
-              │             │             │
-              ▼             ▼             ▼
-        Lexical Search  Semantic Search  Jobs
-              │             │             │
-              ▼             ▼             ▼
-        MemoryIndex    EmbeddingIndex   Scoped
-        ValidatedIndex ValidatedIndex   Context
-              │             │             │
-              └─────────────┼─────────────┘
-                            ▼
-                  ┌─────────────────────┐
-                  │ Identity Resolution │
-                  │ Lifecycle Validation│
-                  │ Memory Acceptance   │
-                  └──────────┬──────────┘
-                             │
-                             ▼
-                       REAL VAULT NOTE
+                    ┌─────────────────────────┐
+                    │      Markdown Vault      │
+                    │                         │
+                    │  Notes + Frontmatter    │
+                    │  Metadata + Provenance   │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │    Identity Authority   │
+                    │                         │
+                    │ vault_identity.py       │
+                    │                         │
+                    │ Fail-closed resolution  │
+                    └────────────┬────────────┘
+                                 │
+                ┌────────────────┴────────────────┐
+                ▼                                 ▼
+      ┌─────────────────────┐          ┌─────────────────────┐
+      │  Lexical Retrieval  │          │ Semantic Retrieval  │
+      │                     │          │                     │
+      │ exact               │          │ SentenceTransformer │
+      │ filename            │          │ all-MiniLM-L6-v2    │
+      │ wikilink            │          │ 384 dimensions      │
+      │ text                │          │                     │
+      └──────────┬──────────┘          └──────────┬──────────┘
+                 │                                │
+                 ▼                                ▼
+        ┌─────────────────┐              ┌──────────────────┐
+        │ MemoryIndex     │              │ EmbeddingIndex   │
+        │ ValidatedIndex  │              │ Validated...     │
+        └────────┬────────┘              └────────┬─────────┘
+                 │                                │
+                 └──────────────┬─────────────────┘
+                                ▼
+                    ┌─────────────────────────┐
+                    │ Candidate Generation   │
+                    │ + Method Ranking        │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │  MemoryRuntime.inspect  │
+                    │  / lifecycle validation │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │     Accepted Memory     │
+                    └─────────────────────────┘
 ```
 
-The important direction is **one-way**:
+The important boundary is at the bottom:
 
-**retrieval → candidate → identity/lifecycle validation → accepted context**
+> **Retrieval finds candidates. Validation decides what the system may accept.**
 
-Never:
-
-**score → trust**
-
----
-
-# Memory Storage
-
-The underlying memory remains ordinary files.
-
-That means the vault is:
-
-* human-readable
-* inspectable without the application
-* compatible with Obsidian
-* version-control friendly
-* portable between AI tools
-* recoverable without a proprietary database
-
-The repository does not require a hosted memory service.
-
-Your actual memory remains yours.
+A higher semantic score cannot promote a superseded note.
+A corrupted index cannot become authority.
+A fabricated path cannot become a real memory.
+A retrieval method cannot bypass identity resolution or lifecycle validation.
 
 ---
 
-# Memory Lifecycle
+## Retrieval
 
-Memory is not treated as a flat collection of permanent facts.
+`memory_retrieval.py` currently supports five retrieval methods:
 
-The protocol distinguishes lifecycle states such as:
+1. **exact**
+2. **filename**
+3. **wikilink**
+4. **text**
+5. **semantic**
 
-* `current`
-* `candidate`
-* `superseded`
-* `disputed`
-* historical/archived states
+The lexical methods remain the deterministic baseline.
 
-A newer statement does not automatically erase an older one.
+Semantic retrieval is additive: it can discover information by meaning even when the query shares little or no literal vocabulary with the note.
 
-Instead, the system can preserve the historical record while establishing the newer state explicitly.
-
-This matters because:
-
-> **"What was true?" and "What is true now?" are different questions.**
-
-Supersession relationships and lifecycle validation prevent stale information from silently becoming current again.
-
----
-
-# Identity Is Separate From Retrieval
-
-One of the most important architectural boundaries is identity resolution.
-
-A search result does not get to decide what a name means.
-
-For example, if a vault contains:
+### Retrieval flow
 
 ```text
-00 - Inbox/Project.md
-09 - Resources/Project.md
+Query
+  │
+  ├── exact
+  ├── filename
+  ├── wikilink
+  ├── text
+  └── semantic
+          │
+          ▼
+      Raw candidates
+          │
+          ▼
+     Merge by identity
+          │
+          ▼
+    Method-priority ranking
+          │
+          ▼
+    MemoryRuntime validation
+          │
+          ▼
+       Results
 ```
 
-then a bare `Project` reference can be ambiguous.
-
-The system therefore treats identity resolution as its own authority boundary and fails closed when identity cannot be established safely.
-
-Path-qualified references remain path-qualified.
-
-A same-named file elsewhere in the vault cannot silently replace the requested note.
+Semantic retrieval does **not** replace lexical retrieval.
 
 ---
-
-# Retrieval
-
-Retrieval currently supports five methods:
-
-```text
-exact
-filename
-wikilink
-text
-semantic
-```
-
-They operate as **candidate-generation mechanisms**, not authority mechanisms.
-
-## Lexical Retrieval
-
-The lexical layer can use a validated `MemoryIndex` to accelerate:
-
-* exact matches
-* filename candidates
-* wikilinks
-* text matches
-
-The index is a performance optimization.
-
-If it is missing, corrupted, stale, incompatible, or otherwise unusable, retrieval falls back to the live vault.
-
-The vault remains authoritative.
 
 ## Semantic Retrieval
 
-Semantic retrieval is optional and uses a real embedding backend.
+The shipped semantic backend uses:
 
-The current implementation uses:
+* **Backend:** `sentence-transformers`
+* **Model:** `sentence-transformers/all-MiniLM-L6-v2`
+* **Dimensions:** 384
+* **Similarity:** cosine similarity
+* **Execution:** local/offline after the model has been downloaded
+* **GPU requirement:** none
 
-**Backend:** `sentence-transformers`
+The semantic dependency is intentionally isolated from the core system.
 
-**Model:** `sentence-transformers/all-MiniLM-L6-v2`
+The standard-library core can operate without semantic dependencies installed. The real backend is imported lazily and injected into retrieval rather than becoming a mandatory dependency of the entire vault.
 
-**Dimensions:** `384`
-
-Semantic retrieval allows queries to find related information even when the query and note do not share obvious keywords.
-
-For example:
-
-```text
-"fresh produce you'd find at a market"
-```
-
-can retrieve notes discussing:
-
-```text
-apples
-vegetables
-farmers markets
-groceries
-```
-
-without requiring exact lexical overlap.
-
-Semantic similarity remains **ranking metadata only**.
-
-It cannot:
-
-* promote a candidate to current
-* resurrect a superseded note
-* override a disputed note
-* resolve an ambiguous identity
-* bypass lifecycle validation
-* manufacture acceptance
-
----
-
-# Embedding Architecture
-
-Semantic retrieval uses an adapter boundary:
-
-```text
-EmbeddingBackend
-       │
-       ├── NullEmbeddingBackend
-       │
-       └── SentenceTransformerBackend
-```
-
-The core retrieval system does not unconditionally import the machine-learning stack.
-
-The semantic backend is injected into the retrieval/runtime layer.
-
-This keeps the core architecture usable without the optional semantic dependencies.
-
-The embedding index separately records:
-
-* vault identity
-* protocol version/hash
-* backend identity
-* model identity
-* embedding dimensions
-* note content hashes
-* vectors
-
-A vector generated by a different model is not treated as interchangeable with the current model.
-
-Likewise, an embedding index from another vault is rejected.
-
----
-
-# Index Freshness
-
-Indexes are snapshots.
-
-They are never blindly trusted forever.
-
-Both lexical and semantic indexes use explicit freshness validation.
-
-A semantic index becomes unusable when relevant snapshot identity changes, including cases such as:
-
-* note content changes
-* notes are added
-* notes are deleted
-* the protocol changes
-* the vault changes
-* the embedding backend changes
-* the embedding model changes
-* embedding dimensions change
-
-When an index is unusable:
-
-```text
-indexed retrieval
-      ↓
-freshness check fails
-      ↓
-live retrieval
-      ↓
-normal validation
-```
-
-No destructive repair is required.
-
-No stale result is silently promoted.
-
----
-
-# Validated Context
-
-Repeated retrieval calls during a runtime session can reuse validated index state.
-
-The system provides:
-
-```text
-ValidatedIndex
-ValidatedEmbeddingIndex
-```
-
-These bind an index's validation result to the specific vault snapshot used to validate it.
-
-This gives the system a useful balance:
-
-* validate once for the session
-* reuse the validated snapshot
-* reject reuse with a different vault object
-* fall back safely when validation fails
-
-The goal is not merely speed.
-
-The goal is **speed without weakening the authority boundary**.
-
----
-
-# Candidate Scoring
-
-Multiple retrieval methods can identify the same note.
-
-Those methods may use completely different score scales.
-
-Therefore:
-
-```text
-Candidate.score
-```
-
-represents the score of the **primary retrieval method**, rather than blindly taking the maximum score across unrelated scoring systems.
-
-The individual method scores are preserved separately:
-
-```text
-Candidate.method_scores
-```
-
-This prevents a semantic similarity value from being accidentally compared against a lexical score as though the two numbers represented the same quantity.
-
-Retrieval priority remains separate from authority.
-
----
-
-# MemoryRuntime
-
-`MemoryRuntime` is the higher-level integration point.
-
-Conceptually:
-
-```python
-MemoryRuntime(
-    vault,
-    index=...,
-    embedding_backend=...,
-    embedding_index=...,
-)
-```
-
-It combines retrieval with the existing memory validation pipeline.
-
-The runtime does not allow a retrieval mechanism to redefine memory authority.
-
-The important invariant is:
-
-```text
-retrieval
-   ↓
-candidate
-   ↓
-identity
-   ↓
-lifecycle validation
-   ↓
-accepted context
-```
-
-not:
-
-```text
-retrieval
-   ↓
-accepted memory
-```
-
----
-
-# Security Model
-
-AI Memory Vault is deliberately defensive about memory authority.
-
-The system is designed to resist attacks and failure modes including:
-
-* same-name decoy notes
-* ambiguous identity
-* path traversal
-* fabricated index paths
-* stale indexes
-* corrupted indexes
-* cross-vault index reuse
-* wrong embedding model
-* wrong backend
-* wrong vector dimensions
-* malformed vectors
-* NaN scores
-* infinite scores
-* maliciously high similarity scores
-* backend exceptions
-* freshness-check exceptions
-* lifecycle manipulation through retrieved content
-
-A particularly important invariant is:
-
-> **A highly relevant note can still be rejected.**
-
-For example, a superseded note can have a higher semantic similarity than the current note.
-
-That changes ranking.
-
-It does **not** change lifecycle authority.
-
----
-
-# External Content Is Data
-
-Vault content is memory data.
-
-It is not executable instruction.
-
-A note containing something such as:
-
-```text
-IGNORE ALL PREVIOUS INSTRUCTIONS
-```
-
-does not acquire authority merely because an AI retrieved it.
-
-The system maintains a separation between:
-
-* agent instructions
-* human/user information
-* relationship information
-* memory content
-* retrieved external content
-
-Retrieved content can inform an agent's reasoning without becoming an instruction source.
-
----
-
-# Memory Health
-
-The project includes mechanical validation for structural memory integrity.
-
-The health/audit tooling covers areas such as:
-
-* frontmatter validity
-* wikilink resolution
-* lifecycle consistency
-* supersession relationships
-* cycles
-* dependency declarations
-* index integrity
-* retrieval invariants
-* authority boundaries
-
-Some decisions intentionally remain AI-judgment tasks.
-
-For example, determining whether two statements represent:
-
-* a genuine contradiction
-* a correction
-* a temporal change
-* compatible facts
-
-requires semantic judgment and is not falsely presented as a deterministic validator capability.
-
----
-
-# Jobs
-
-Jobs provide scoped operational context for recurring tasks.
-
-A Job can declare memory dependencies rather than requiring an agent to ingest the entire vault.
-
-This keeps context:
-
-* smaller
-* more predictable
-* easier to audit
-* easier to reason about
-
-Job dependencies are treated as explicit references rather than suggestions to improvise around.
-
-A required dependency failing should not silently become permission to substitute a nearby note.
-
----
-
-# Portability
-
-The memory itself is deliberately model-agnostic.
-
-The vault does not require a specific AI provider to understand its contents.
-
-The repository includes:
-
-* a canonical memory protocol
-* vault templates
-* agent configuration templates
-* migration guidance
-* validation tooling
-* retrieval infrastructure
-
-The current semantic backend is optional.
-
-The memory protocol is the durable layer.
-
-This distinction matters:
-
-> **The model can change. The memory should not have to.**
-
----
-
-# Installation
-
-## Core
-
-The core architecture is designed around Python's standard library.
-
-The semantic backend is optional.
-
-Core functionality does not require `sentence-transformers`, PyTorch, NumPy, FAISS, or another vector database.
-
-## Optional Semantic Retrieval
-
-Install the semantic dependencies with:
+### Install semantic support
 
 ```bash
 pip install -r tools/requirements-semantic.txt
 ```
 
-This installs the optional local semantic retrieval stack.
+The first backend initialization may download the model if it is not already cached locally.
 
-The current backend uses:
+After the model is cached, retrieval operates locally without requiring a remote inference service.
 
-```text
-sentence-transformers
-all-MiniLM-L6-v2
-384 dimensions
-```
+### Important distinction
 
-The model is downloaded and cached by the Hugging Face ecosystem when the semantic backend is first initialized.
+Semantic similarity is **ranking information only**.
 
-If the optional dependency is unavailable, the core system remains usable and semantic retrieval degrades cleanly.
+It is never:
+
+* a trust score
+* an acceptance decision
+* a lifecycle decision
+* an identity decision
+* provenance
+* evidence that a memory is current
+
+A semantically excellent match can still be rejected because the underlying note is superseded, disputed, malformed, ambiguous, or otherwise invalid.
 
 ---
 
-# Repository Structure
+## Indexes
+
+AI Memory Vault supports persistent retrieval accelerators while keeping the vault files authoritative.
+
+### `MemoryIndex`
+
+The lexical index accelerates lexical candidate discovery.
+
+Its validity is tied to the vault snapshot it was built from.
+
+### `ValidatedIndex`
+
+A `ValidatedIndex` binds an index to the exact vault object it was validated against for the lifetime of a runtime session.
+
+This avoids repeatedly performing the same expensive freshness check while preserving the existing construction-time snapshot semantics.
+
+### `EmbeddingIndex`
+
+The semantic index stores:
 
 ```text
-ai-memory-vault/
-│
+schema_version
+vault_root
+protocol_hash
+backend_id
+model_id
+dimensions
+
+entries:
+    rel
+    content_hash
+    vector
+```
+
+Vectors are tied to:
+
+* the vault
+* the protocol
+* the backend
+* the model
+* the vector dimensionality
+* the source note's content hash
+
+An incompatible index is rejected rather than silently reused.
+
+### `ValidatedEmbeddingIndex`
+
+Like `ValidatedIndex`, this provides session-scoped validation of an embedding index.
+
+The semantic index remains an accelerator—not an authority.
+
+---
+
+## Candidate and Score Semantics
+
+Retrieval methods may produce different kinds of scores.
+
+Those scores are **not blindly combined**.
+
+Each candidate retains:
+
+```text
+Candidate.score
+Candidate.method_scores
+```
+
+`Candidate.score` represents the score belonging to the candidate's primary retrieval method.
+
+`method_scores` preserves individual method scores separately.
+
+This prevents a semantic similarity value from being accidentally compared as though it were numerically equivalent to a lexical score.
+
+Method priority is evaluated before score, so a larger semantic number cannot automatically outrank a higher-priority lexical match.
+
+---
+
+## Identity and Lifecycle Safety
+
+The most important architectural rule is that retrieval does not decide whether something is true.
+
+### Identity
+
+`vault_identity.resolve_identity()` remains the authoritative identity resolver.
+
+It is responsible for resolving references against the actual vault and failing closed when identity is ambiguous or invalid.
+
+Indexes do not resolve identity.
+
+Semantic similarity does not resolve identity.
+
+Scores do not resolve identity.
+
+### Lifecycle
+
+`MemoryRuntime.inspect()` / `_validate()` remains the acceptance authority.
+
+Lifecycle state such as:
+
+* current
+* candidate
+* superseded
+* disputed
+* malformed
+
+is determined from authoritative note metadata and vault state—not from retrieval scores.
+
+This means an adversarially high semantic score cannot resurrect a superseded memory.
+
+---
+
+## Freshness and Mutation Safety
+
+Both lexical and semantic indexes use whole-snapshot freshness validation.
+
+Relevant changes invalidate the corresponding accelerator, including changes to:
+
+* note contents
+* note creation/deletion
+* `MEMORY_PROTOCOL.md`
+* vault identity
+* index schema
+* semantic backend identity
+* semantic model identity
+* embedding dimensions
+
+When an accelerator is unavailable, corrupted, incompatible, or stale, retrieval falls back to live vault discovery rather than trusting stale data.
+
+The system therefore prefers:
+
+```text
+slower + authoritative
+```
+
+over:
+
+```text
+faster + potentially stale
+```
+
+---
+
+## Security Model
+
+The retrieval layer is deliberately treated as untrusted optimization infrastructure.
+
+The release and adversarial test suites exercise cases including:
+
+* same-stem decoy notes
+* ambiguous identities
+* superseded notes with extremely high scores
+* fabricated index paths
+* path traversal attempts
+* cross-vault index reuse
+* wrong backend/model/dimension combinations
+* stale content hashes
+* malformed vectors
+* NaN and infinite similarity scores
+* exception-raising backends
+* exception-raising indexes
+* corrupted indexes
+* disappearing and appearing ambiguities
+* mutation followed by restoration
+* mixed lexical + semantic results
+
+The security invariant is simple:
+
+> **No retrieval accelerator may cross the identity, lifecycle, provenance, or acceptance boundary.**
+
+---
+
+## Performance
+
+Semantic retrieval currently uses an exact **O(N) linear nearest-neighbor scan**.
+
+The implementation precomputes stored-vector magnitudes so repeated cosine calculations do not recompute invariant values.
+
+Measured results include:
+
+|  Vault size |                    Semantic retrieval |
+| ----------: | ------------------------------------: |
+|   100 notes |                                ~18 ms |
+|   500 notes |                                ~96 ms |
+| 1,000 notes |                               ~121 ms |
+| 5,000 notes | ~522 ms before freshness optimization |
+
+The magnitude-caching optimization produced approximately a **2.1× speedup** for the nearest-neighbor calculation while preserving bit-identical results against the reference implementation.
+
+At personal-vault scale, this is currently sufficient.
+
+If vaults become substantially larger, the next optimization target would be vectorized or approximate nearest-neighbor search. That would be a separate architectural decision rather than something silently introduced into the current core.
+
+---
+
+## Dependency Model
+
+The core project remains intentionally lightweight.
+
+Semantic retrieval is an optional dependency layer:
+
+```text
+Core
+├── Python standard library
+├── vault parsing
+├── identity resolution
+├── lifecycle validation
+├── lexical retrieval
+└── lexical index
+
+Optional semantic layer
+├── sentence-transformers
+├── torch
+├── numpy
+└── local embedding model
+```
+
+The semantic backend is lazily imported and injected.
+
+A caller that does not use semantic retrieval does not need to load the ML stack.
+
+---
+
+## Project Structure
+
+Important components include:
+
+```text
+.
 ├── MEMORY_PROTOCOL.md
+├── MEMORY_RUNTIME.md
 ├── ACCELERATION_LAYER.md
 ├── MIGRATION.md
 ├── CHANGELOG.md
-├── README.md
-├── TROUBLESHOOTING.md
-│
-├── ai-memory-vault.md
-│
-├── templates/
-│   ├── CLAUDE.md
-│   ├── VAULT-INDEX.md
-│   ├── DAILY-NOTE.md
-│   └── MEMORY.md
 │
 ├── tools/
 │   ├── memory_retrieval.py
@@ -597,205 +412,139 @@ ai-memory-vault/
 │   ├── embedding_backend.py
 │   ├── embedding_index.py
 │   ├── sentence_transformers_backend.py
+│   ├── memory_health.py
 │   ├── memory_conflict.py
 │   ├── memory_provenance.py
-│   ├── memory_health.py
 │   └── requirements-semantic.txt
 │
 └── tests/
     ├── test_memory_index.py
+    ├── test_memory_runtime.py
     ├── test_embedding_boundary.py
     ├── test_sentence_transformers_backend.py
     ├── test_semantic_performance_hardening.py
+    ├── test_semantic_adversarial_release.py
     ├── test_release_audit.py
+    ├── test_memory_health.py
+    ├── test_memory_conflict.py
+    ├── test_memory_provenance.py
+    ├── test_surface_resolution.py
     └── ...
 ```
 
-The exact repository contents may evolve; the important architectural distinction is between:
-
-**protocol → memory → retrieval → validation → tooling**
-
 ---
 
-# Testing
+## Testing
 
-The project uses adversarial and regression-oriented testing rather than relying exclusively on happy-path examples.
+The project uses both ordinary regression testing and adversarial testing.
 
-The test suite covers:
+The test surface covers:
 
-* memory indexing
-* runtime behavior
-* conflict handling
+* vault validation
+* metadata/schema behavior
+* identity resolution
+* lifecycle validation
 * provenance
-* health checks
-* surface resolution
-* Job dependencies
+* conflict handling
+* lexical indexes
+* semantic indexes
+* backend behavior
+* freshness and mutation
+* cross-method ranking
+* dependency isolation
+* serialization integrity
+* path safety
+* exception handling
+* release invariants
+
+The current audited suite contains **13+ test/validator entry points**, including dedicated semantic and release-audit coverage.
+
+A clean test run is a release requirement.
+
+---
+
+## Design Philosophy
+
+AI Memory Vault deliberately separates four concerns:
+
+### 1. Storage
+
+Markdown files are the durable memory.
+
+### 2. Discovery
+
+Retrieval methods find possible matches.
+
+### 3. Identity
+
+The vault determines what a reference actually refers to.
+
+### 4. Acceptance
+
+Runtime validation determines whether the resulting memory is acceptable.
+
+Those concerns should not collapse into one another.
+
+A faster search algorithm should remain a faster search algorithm—not quietly become a new source of truth.
+
+---
+
+## Current Status
+
+**Semantic retrieval: shipped and audited.**
+
+The current architecture includes:
+
+* deterministic lexical retrieval
+* persistent lexical indexing
+* validated lexical index reuse
 * semantic retrieval
-* embedding backend behavior
-* embedding-index freshness
-* malformed indexes
-* cross-vault reuse
-* model/backend/dimension mismatches
-* lifecycle attacks
-* score attacks
-* filesystem traversal attempts
+* local sentence-transformer embeddings
+* persistent embedding indexes
+* validated embedding-index reuse
+* cross-backend/model/dimension freshness checks
+* explicit per-method scoring
+* adversarial semantic retrieval testing
 * dependency isolation
-* release boundaries
+* lifecycle and identity separation
 
-The semantic layer is tested both with a deterministic test double and with the real embedding backend.
+The semantic layer is currently considered suitable for **local, personal-vault-scale use**.
 
-The real backend has been exercised end-to-end against actual vault data.
+Known limitations are documented rather than hidden:
 
----
-
-# Performance
-
-The design deliberately favors **exactness before approximation**.
-
-The current embedding index uses an exact linear nearest-neighbor scan.
-
-That is intentionally simpler than introducing FAISS, hnswlib, or another approximate-nearest-neighbor dependency.
-
-Measured behavior has already justified targeted optimization where it mattered:
-
-* embedding magnitudes are cached
-* validated embedding contexts are reusable
-* semantic query embedding is independent of vault size
-* retrieval remains exact
-* no approximate ranking algorithm is required
-
-The current implementation is intended for personal-vault-scale workloads.
-
-If vault sizes eventually make O(N) semantic search a real bottleneck, the nearest-neighbor layer is an explicit future optimization boundary.
+* semantic nearest-neighbor search remains O(N)
+* semantic duplicate detection is not currently part of `HEALTH_CHECK`
+* some semantic judgments remain inherently AI-assisted rather than mechanically decidable
+* optional semantic dependencies use the project's current dependency constraints
 
 ---
 
-# Design Principles
+## Documentation
 
-The project follows a few rules aggressively.
+For the deeper contracts:
 
-### 1. The vault is authoritative
+* `MEMORY_PROTOCOL.md` — normative memory rules and invariants
+* `MEMORY_RUNTIME.md` — runtime and retrieval architecture
+* `ACCELERATION_LAYER.md` — index and acceleration architecture
+* `MIGRATION.md` — migration guidance
+* `CHANGELOG.md` — historical changes and decisions
 
-Indexes accelerate the vault.
-
-They do not replace it.
-
-### 2. Retrieval is not trust
-
-A result being highly relevant does not make it true.
-
-### 3. Identity is explicit
-
-A search mechanism does not get to redefine what a reference means.
-
-### 4. Lifecycle is authoritative
-
-Current, candidate, superseded, and disputed states are not ranking labels.
-
-### 5. Fail closed
-
-When identity, freshness, or integrity cannot be established safely, the system falls back or refuses rather than guessing.
-
-### 6. Preserve history
-
-Superseded information should remain available as history when appropriate.
-
-### 7. Prefer simple infrastructure
-
-Plain Markdown, Python, deterministic validation, and explicit boundaries are preferred over unnecessary infrastructure.
-
-### 8. Optional acceleration must remain optional
-
-Semantic retrieval can improve discovery without becoming a requirement for basic memory operation.
-
-### 9. Never auto-execute retrieved content
-
-Memory is data.
-
-It is not an instruction channel.
-
-### 10. Optimize only when measurement justifies it
-
-Performance work should preserve the same authority and correctness guarantees.
+The protocol is the authority for memory semantics. Implementation details must conform to it.
 
 ---
 
-# Documentation
+## The Short Version
 
-The repository's canonical protocol is:
+If you only remember one thing:
 
-**`MEMORY_PROTOCOL.md`**
+**The vault is the truth.**
 
-The acceleration architecture is documented separately in:
+Everything else exists to make finding that truth faster.
 
-**`ACCELERATION_LAYER.md`**
+Lexical indexes are guesses.
+Semantic vectors are guesses.
+Scores are ranking metadata.
+Caches are accelerators.
+Retrieval produces candidates.
 
-Migration and compatibility guidance lives in:
-
-**`MIGRATION.md`**
-
-Troubleshooting information lives in:
-
-**`TROUBLESHOOTING.md`**
-
-These documents should be treated as complementary:
-
-```text
-MEMORY_PROTOCOL.md
-        │
-        ├── What memory means
-        ├── What is authoritative
-        └── How an agent should behave
-                 │
-                 ▼
-ACCELERATION_LAYER.md
-        │
-        ├── How retrieval is accelerated
-        ├── Index boundaries
-        └── Semantic retrieval
-```
-
----
-
-# Current Status
-
-The repository currently contains a **working lexical + semantic retrieval architecture** with:
-
-* explicit memory lifecycle
-* deterministic identity resolution
-* indexed lexical retrieval
-* validated/reusable lexical context
-* optional local semantic retrieval
-* real sentence-transformer embeddings
-* embedding-index freshness validation
-* runtime integration
-* score isolation between retrieval methods
-* dependency isolation
-* adversarial security coverage
-* regression coverage
-* release auditing
-
-The semantic backend currently targets personal-vault-scale workloads and intentionally uses an exact linear nearest-neighbor scan rather than an additional ANN dependency.
-
----
-
-# Philosophy
-
-AI memory should not behave like a junk drawer where the loudest or newest item wins.
-
-It should behave more like a carefully indexed filesystem:
-
-**discover quickly, identify precisely, validate authority, preserve history, and fail closed when the answer is uncertain.**
-
-The retrieval layer can become faster.
-
-The models can change.
-
-The embedding backend can change.
-
-The vault can move between agents.
-
-But the fundamental rule stays the same:
-
-> **The thing that finds a memory must never be the thing that decides whether that memory is authoritative.**
-
+**Identity and lifecycle validation decide what actually counts.**
