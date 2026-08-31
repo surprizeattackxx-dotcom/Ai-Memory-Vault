@@ -88,6 +88,21 @@ vid = _load("vault_identity", IDENTITY)
 ajd = _load("audit_job_dependencies", JOB_AUDITOR)
 mr = _load("memory_retrieval", RETRIEVAL)
 
+# Normal import, not _load(): tools/memory_index.py is a plain file already
+# importable via tools/ being on sys.path (memory_index.py adds it too), and
+# it deliberately no longer depends on this module (see its own v3.7.5
+# import-comment for why) — the two used to have a one-way dependency the
+# other direction (memory_index -> memory_runtime, for a shared vv
+# reference), which would have made this import circular had it stayed that
+# way. Added for the "Fix the Provenance Index Performance Boundary" ticket:
+# MemoryRuntime(index=...) needs ValidatedIndex to amortize freshness
+# checking across a runtime instance's whole lifetime instead of once per
+# search() call.
+import memory_index as mi_mod
+# Same reasoning: tools/embedding_index.py has no dependency on this module
+# either, so this import is safe and non-circular for the identical reason.
+import embedding_index as ei_mod
+
 RUNTIME_VERSION = "1.0.0"
 
 # status_track values and their meaning, mirrored from MEMORY_PROTOCOL.md's
@@ -139,7 +154,26 @@ class InspectResult:
 
 
 class MemoryRuntime:
-    def __init__(self, vault_root, boot=None, repo_root=None):
+    def __init__(self, vault_root, boot=None, repo_root=None, index=None,
+                 embedding_backend=None, embedding_index=None):
+        """`index` (added v3.7.5's "Fix the Provenance Index Performance
+        Boundary" ticket, optional, default None — every existing caller is
+        untouched): an already-built-or-loaded tools/memory_index.py
+        MemoryIndex. If given, its freshness is checked EXACTLY ONCE, right
+        here, against this instance's own freshly-discovered `self.vault` —
+        the identical moment `self.vault.notes`, `self._cycle_members`, and
+        `self._by_rel` all become fixed snapshots for this instance's entire
+        life. The resulting ValidatedIndex is reused for every retrieve()
+        call this instance ever makes, with zero re-hashing, for exactly the
+        same reason `_cycle_members`/`_by_rel` are already never re-verified
+        against disk after this point: a MemoryRuntime instance's view of
+        the vault has always been a one-time snapshot, for everything it
+        does, not a special case introduced for the index. If the vault
+        changes on disk while this SAME instance stays alive without being
+        reconstructed, retrieve() (and resolve()/inspect(), and everything
+        else) are already reading the pre-change snapshot regardless of any
+        index at all — construct a new MemoryRuntime to see new content, as
+        was already true before this parameter existed."""
         root = Path(vault_root)
         if not root.is_dir():
             raise ValueError("vault path is not a directory: %s" % vault_root)
@@ -153,6 +187,22 @@ class MemoryRuntime:
         self.vault.detect_state()
         self._cycle_members = ajd.compute_cycle_members(self.vault)
         self._by_rel = {n["rel"]: n for n in self.vault.notes}
+        self._validated_index = mi_mod.ValidatedIndex(index, self.vault) if index is not None else None
+        self._embedding_backend = embedding_backend
+        self._embedding_index = embedding_index
+        # ValidatedEmbeddingIndex (added v3.7.5 Phase 11, with MEASURED
+        # justification): benchmarking found embedding_index.is_fresh_for()
+        # alone consumed 28-56% of total semantic query time (N=100..5000,
+        # the fraction GROWS with vault size) — not negligible, the same
+        # shape of finding that justified ValidatedIndex above for the
+        # lexical path. The ONE freshness check happens here, at the same
+        # construction-time snapshot moment as everything else on this
+        # instance, and is reused for every retrieve() call this instance
+        # ever makes.
+        self._validated_embedding_index = (
+            ei_mod.ValidatedEmbeddingIndex(embedding_index, self.vault, embedding_backend)
+            if embedding_index is not None and embedding_backend is not None else None
+        )
 
     # ------------------------------------------------------------- resolve
     def resolve(self, identity: str) -> ResolveResult:
@@ -185,7 +235,9 @@ class MemoryRuntime:
         and rejected candidates both present, each correctly labeled. Never
         filters a candidate out for being superseded/candidate/etc.; never
         mutates the vault."""
-        candidates = mr.search(self.vault, query, methods=methods, limit=limit)
+        candidates = mr.search(self.vault, query, methods=methods, limit=limit, validated_index=self._validated_index,
+                                embedding_backend=self._embedding_backend, embedding_index=self._embedding_index,
+                                validated_embedding_index=self._validated_embedding_index)
         out = []
         for c in candidates:
             note = self._by_rel.get(c.note_path)

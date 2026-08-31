@@ -1,0 +1,31 @@
+# Optional dependency set for REAL semantic retrieval (tools/sentence_transformers_backend.py).
+#
+# NOT required for core operation. Vault loading, identity resolution,
+# lifecycle validation, and every lexical retrieval method (exact, filename,
+# wikilink, text) function identically with or without this file's packages
+# installed — see tools/embedding_backend.py's own docstring on why the real
+# backend lives outside the stdlib-only core.
+#
+# Install with:
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch
+#   pip install -r tools/requirements-semantic.txt
+# (torch is listed separately, and installed FIRST from the CPU-only wheel
+# index above, specifically to avoid pulling the much larger CUDA build that
+# a bare `pip install torch` would default to on a machine with an NVIDIA
+# GPU present — this project's semantic retrieval has no need for GPU
+# acceleration at personal-vault scale.)
+#
+# Actual environment this was verified against (2026-08-30, Python 3.12.10,
+# Windows 11): installing sentence-transformers pulled in these transitive
+# dependencies beyond torch+numpy — listed here for honesty, not because any
+# of them need separate installation:
+#   transformers==5.16.1, tokenizers==0.23.1, huggingface_hub==1.29.0,
+#   scikit-learn==1.9.0
+#
+# First real use of the backend downloads the model
+# (sentence-transformers/all-MiniLM-L6-v2, ~90MB) from HuggingFace once, then
+# caches it locally (~/.cache/huggingface) — no further network access is
+# required afterward, and no query-time network call is ever made.
+
+sentence-transformers>=6.0.0
+numpy>=2.0.0
