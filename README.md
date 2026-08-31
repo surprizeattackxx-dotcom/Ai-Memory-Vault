@@ -346,18 +346,9 @@ The security invariant is simple:
 
 Semantic retrieval currently uses an exact **O(N) linear nearest-neighbor scan**.
 
-The implementation precomputes stored-vector magnitudes so repeated cosine calculations do not recompute invariant values.
+The implementation precomputes stored-vector magnitudes once, at index construction, so repeated cosine calculations never recompute an invariant value — this produces results bit-identical to the unoptimized reference calculation, never an approximation.
 
-Measured results include:
-
-|  Vault size |                    Semantic retrieval |
-| ----------: | ------------------------------------: |
-|   100 notes |                                ~18 ms |
-|   500 notes |                                ~96 ms |
-| 1,000 notes |                               ~121 ms |
-| 5,000 notes | ~522 ms before freshness optimization |
-
-The magnitude-caching optimization produced approximately a **2.1× speedup** for the nearest-neighbor calculation while preserving bit-identical results against the reference implementation.
+Measured results: profiling found the per-call freshness check (`is_fresh_for()`) alone consumed **28–56% of total semantic query time**, rising as vault size grew from N=100 to N=5,000. `ValidatedEmbeddingIndex` eliminates that repeated cost by checking freshness once per session, at construction, rather than on every query.
 
 At personal-vault scale, this is currently sufficient.
 
