@@ -22,7 +22,7 @@ description: >-
   templates/VAULT-INDEX.md. Behavioral rules (retrieval priority, candidate
   promotion, conflict classification, incompatible-state handling) are NOT
   encoded here; they live only in the Markdown protocol.
-x-protocol-version: "2.7"
+x-protocol-version: "2.8"
 x-schema-version: "1.0.0"
 x-authoritative: MEMORY_PROTOCOL.md
 $comment: >-

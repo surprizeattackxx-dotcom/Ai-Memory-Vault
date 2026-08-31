@@ -12,6 +12,7 @@ tests/run_vault_validator.py.
 """
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
@@ -543,9 +544,18 @@ This content is intentionally identical across two notes.
 def fixture_14_divergence():
     files = base_files()
     proto = files["09 - Resources/MEMORY_PROTOCOL.md"]
-    files["09 - Resources/MEMORY_PROTOCOL.md"] = (
-        proto.replace("behavioral instruction", "behavioral instriction").replace("version: 2.7", "version: 2.8")
-    )
+    # Version is rewritten via regex against whatever the real MEMORY_PROTOCOL.md
+    # currently declares, not a hardcoded literal — a hardcoded old->new pair
+    # silently stopped introducing any actual divergence the moment the real
+    # file's version caught up to the fixture's hardcoded "new" value (found
+    # 2026-08-30, when the real file bumped 2.7 -> 2.8 and this fixture's
+    # `.replace("version: 2.7", "version: 2.8")` became a no-op, since the base
+    # content already read "version: 2.8" — the PARITY-PROTOCOL-VERSION finding
+    # silently stopped firing with no test failure until the assertion below
+    # caught it). "999.9" is guaranteed different from any real version.
+    proto = re.sub(r"version: \d+\.\d+", "version: 999.9", proto, count=1)
+    proto = proto.replace("behavioral instruction", "behavioral instriction")
+    files["09 - Resources/MEMORY_PROTOCOL.md"] = proto
     return files, {"state": "current", "verdict": "FAIL", "errors": ["PARITY-PROTOCOL-VERSION", "PARITY-PROTOCOL-DIVERGENCE"], "warnings": [], "flagged": []}
 
 
