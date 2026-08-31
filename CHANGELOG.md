@@ -1,5 +1,39 @@
 # Changelog
 
+## v3.7.0 – v3.7.5
+
+The Memory Runtime and its retrieval abstraction, then two independent acceleration layers (lexical, then optional semantic) built against the same fail-closed authority model, then a release-audit sequence adversarially testing the whole stack before it shipped. `MemoryRuntime.inspect()` remains the sole lifecycle/acceptance authority throughout — no candidate score, index field, backend identity, or vector similarity value can promote a note, bypass identity resolution, or manufacture trust, in either accelerator.
+
+**Added — Memory Runtime & retrieval abstraction (v3.7.0):**
+- **`tools/memory_retrieval.py`** — the search-phase implementation of `MEMORY_PROTOCOL.md`'s `RETRIEVE` operation: `exact`, `filename`, `wikilink`, `text` methods, a deterministic `Candidate` contract, and explicit method-priority + score sort ordering. Dependency-free; no accelerator is required or assumed.
+- **`tools/memory_runtime.py`** — `MemoryRuntime`, wrapping retrieval with the validation phase: `resolve()` (identity only), `inspect()` (resolve + validate one note), `retrieve()` (search + validate every candidate). Every result carries full provenance and an `accepted: bool` that comes exclusively from live lifecycle state.
+- **`MEMORY_RUNTIME.md`** — the architecture document for both modules.
+- **`tests/test_memory_runtime.py`** — 14 scenarios plus a static source check confirming neither module imports (or even mentions, in code or comment) an ML/vector-store package name.
+
+**Added — lexical acceleration:**
+- **`tools/memory_index.py`** — `MemoryIndex` (rebuildable, disposable lexical index) and `ValidatedIndex` (session-scoped, one-time freshness check bound by object identity to a specific vault instance). Any mismatch — schema, vault, protocol, or a single note's content hash — untrusts the whole index; degrades to live scan, never a crash or a guess.
+- **`tests/test_memory_index.py`** — invariants A–I, 9 freshness cases, 23 adversarial attacks, session-scoped mutation semantics.
+
+**Added — semantic acceleration (v3.7.5, optional):**
+- **`tools/embedding_backend.py`** — the `EmbeddingBackend` contract plus `NullEmbeddingBackend`, the always-unavailable stub requiring no dependency.
+- **`tools/embedding_index.py`** — `EmbeddingIndex` + `ValidatedEmbeddingIndex`, the semantic-side equivalent of the lexical index, extended with backend/model/dimension identity checks a lexical index has no need for. Magnitude-precomputed exact cosine search (not approximate) — measured 28–56% of per-query time saved at N=100..5000 by amortizing the freshness check once per session instead of once per query.
+- **`tools/sentence_transformers_backend.py`** — the one real backend this repo ships (`sentence-transformers`, `all-MiniLM-L6-v2`, 384 dimensions, CPU-only, local/offline after first download). Optional dependency (`tools/requirements-semantic.txt`), lazily imported, isolated to this one file — core vault loading, identity resolution, lifecycle validation, and lexical retrieval have zero awareness it exists.
+- **`"semantic"`** as `memory_retrieval.py`'s fifth method; `Candidate.method_scores` added so a cross-method score comparison (the pre-existing latent bug once a second scored method existed) can't happen — `Candidate.score` is always the primary method's own score, never a blended `max()`.
+- **`tests/test_embedding_boundary.py`, `test_sentence_transformers_backend.py`, `test_semantic_performance_hardening.py`, `test_semantic_adversarial_release.py`, `test_release_audit.py`** — boundary/security invariants, real-backend conformance, the performance-hardening measurement above, and two full adversarial release passes (20 numbered attack cases: superseded/disputed/candidate notes with fabricated high scores, cross-vault/model/backend/dimension reuse, malformed vectors, NaN/infinite scores, exception-raising backend/index/freshness-check paths) — none crossed the identity/lifecycle/acceptance/provenance boundary.
+
+**Added — sibling Memory Runtime modules:**
+- **`tools/memory_conflict.py`, `tools/memory_health.py`, `tools/memory_provenance.py`** — conflict detection, health/coverage auditing, and provenance/evidence tracing built on the same runtime, with their own dedicated test suites (11, 24, and 20 scenarios respectively).
+
+**Fixed — documentation drift found during release audit:**
+- `ACCELERATION_LAYER.md`, `MEMORY_PROTOCOL.md` (→ v2.7, then v2.8), `MEMORY_RUNTIME.md`, and `tools/embedding_backend.py`/`embedding_index.py`/`memory_retrieval.py`'s own module docstrings all had statements left over from before semantic retrieval existed — including `MEMORY_PROTOCOL.md`'s "Source of truth" section still asserting no acceleration layer shipped, several versions after two of them had. Corrected in place; historical changelog entries and genuinely historical framing left untouched.
+- `README.md`'s Performance section cited fabricated benchmark numbers (specific millisecond timings, a "2.1× speedup" figure) that traced to nothing in the codebase — replaced with the one figure that's actually measured and documented (28–56% query-time savings, above).
+
+**Fixed — two silent test-fixture regressions, same root cause:** a hardcoded old-value string swap in a fixture builder (`tests/fixtures/vaults/build_fixtures.py`'s `fixture_14_divergence` and `fixture_15_transformed`) stopped introducing any actual divergence the moment the real source text it was patching caught up to the fixture's hardcoded "new" value — silently, with no test failure, until each was caught by inspection. Both rewritten to derive their mutation from the live source text rather than a frozen literal.
+
+**Privacy hardening:** a pre-publish audit found the real vault owner's actual name, birthdate, home city, and family/pet names hardcoded into shared test-fixture templates, propagating into 75+ generated fixture vaults, plus a real-looking email address and the real machine username in raw session-capture logs under `tests/fixtures/portability/evidence/`. All real data replaced with a synthetic persona across every fixture generator and hand-authored fixture; the 11 raw evidence log/JSON files deleted outright (unstructured transcripts can't be redaction-guaranteed) with `PORTABILITY_MATRIX.md`'s own prose retained as the human-readable record in their place. Git history rewritten (`git filter-repo`) and force-pushed; verified against a fresh clone that zero real-data patterns survive in any of the 72 commits.
+
+**Full suite, final run:** 14/14 test and validator entry points pass (`test_memory_runtime.py`, `test_memory_index.py`, `test_embedding_boundary.py`, `test_sentence_transformers_backend.py`, `test_semantic_performance_hardening.py`, `test_semantic_adversarial_release.py`, `test_release_audit.py`, `test_memory_conflict.py`, `test_memory_health.py`, `test_memory_provenance.py`, `test_surface_resolution.py`, `run_vault_validator.py`, `run_health_coverage.py`, `run_job_dependency_audit.py`). Whole-repo hash before/after every regression run: zero unintended mutation.
+
 ## v3.6.9
 
 Adds `tools/audit_job_dependencies.py`: a deterministic, LLM-free auditor for a Job's `**Required:**`/`**Preferred:**`/`**Optional:**` dependency tiers against `MEMORY_PROTOCOL.md`'s Job dependency policy table (v2.5+). Before this, `validate-vault.py` had zero Job-aware logic at all — confirmed by source inspection, not assumed — so a superseded, candidate-under-claim, or malformed-declaration Required dependency produced no finding anywhere in the toolchain, despite the protocol's own text calling that table's resolution "deterministic... no improvised per-session judgment." `MEMORY_PROTOCOL.md` is unchanged throughout this entire entry — every fix below makes the new tool correctly enforce a resolution table that was already fully specified, never a new rule.
