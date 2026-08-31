@@ -41,8 +41,8 @@ Structural files — exempt from index/orphan expectations:
 - [x] 02 - Projects/note-one.md
 - [x] 02 - Projects/note-two.md
 - [x] 07 - Personal/Milo.md
-- [x] 07 - Personal/Wren.md
 - [x] 07 - Personal/Personal.md
+- [x] 07 - Personal/Wren.md
 
 ## Skipped files
 
@@ -54,7 +54,7 @@ Structural files — exempt from index/orphan expectations:
 - [ ] duplicate coverage omitted one cluster member (see ## Duplicate coverage)
 
 ## Notes
-Duplicate coverage below lists only one member of the Wren/Bash cluster; the run moved on without comparing the other.
+Duplicate coverage below lists only one member of the Wren/Milo cluster; the run moved on without comparing the other.
 
 ## Lifecycle coverage
 - [x] 02 - Projects/note-two.md

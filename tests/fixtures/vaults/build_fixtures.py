@@ -44,12 +44,12 @@ A deterministic fixture vault built by tests/fixtures/vaults/build_fixtures.py.
 
 ## Who I Am
 
-I'm Rowan, 31, born March 14, 1994. I live in Fernbrook, Michigan. My wife is Wren.
+I'm Rowan, 31, born March 14, 1994. I live in Fernbrook, Ohio. My spouse is Wren.
 
 ## Key People
 
-- [[Wren]] — my wife
-- [[Milo]] — my son (Miles)
+- [[Wren]] — my spouse
+- [[Milo]] — my kid
 
 ## Projects
 
@@ -235,8 +235,8 @@ type: index
 
 ## Notes
 
-- [[Wren]] — my wife.
-- [[Milo]] — my son (Miles).
+- [[Wren]] — my spouse.
+- [[Milo]] — my kid.
 """
 
 MELENA_NOTE = """---
@@ -246,7 +246,7 @@ type: reference
 ---
 # Wren
 
-My wife. Partner in everything.
+My spouse. Partner in everything.
 """
 
 BASH_NOTE = """---
@@ -256,7 +256,7 @@ type: reference
 ---
 # Milo
 
-My son (Miles). Lives with his mom; with me on a regular schedule.
+My kid. Lives with the other parent; with me on a regular schedule.
 """
 
 NOTE_ONE = """---
@@ -563,7 +563,7 @@ def fixture_15_transformed():
     files = base_files()
     files["VAULT-INDEX.md"] = (
         files["VAULT-INDEX.md"]
-        .replace("I'm Rowan, 31, born March 14, 1994. I live in Fernbrook, Michigan.", "I'm Alex, 41, born March 2, 1984. I live in Ann Arbor, Michigan.")
+        .replace("I'm Rowan, 31, born March 14, 1994. I live in Fernbrook, Ohio.", "I'm Jamie, 41, born March 2, 1984. I live in Rivergate, Illinois.")
         .replace("## Who I Am", "## About Me")
     )
     return files, {"state": "current", "verdict": "PASS", "errors": [], "warnings": [], "flagged": []}
@@ -692,8 +692,8 @@ contradicts the protocol - the index is simply behind.
 
 ## Key People
 
-- [[Wren]] — my wife
-- [[Milo]] — my son (Miles)
+- [[Wren]] — my spouse
+- [[Milo]] — my kid
 
 ## Projects
 

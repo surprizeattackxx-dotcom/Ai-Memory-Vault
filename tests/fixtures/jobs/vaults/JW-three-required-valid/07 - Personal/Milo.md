@@ -5,4 +5,4 @@ type: reference
 ---
 # Milo
 
-My son (Miles). Lives with his mom; with me on a regular schedule.
+My kid. Lives with the other parent; with me on a regular schedule.

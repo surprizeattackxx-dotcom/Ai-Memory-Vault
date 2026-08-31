@@ -9,11 +9,11 @@ Read this file at the start of every conversation to understand who I am and how
 
 ## Who I Am
 
-I'm Rowan, 31, born March 14, 1994. I live in Fernbrook, Michigan. My wife is Wren.
+I'm Rowan, 31, born March 14, 1994. I live in Fernbrook, Ohio. My spouse is Wren.
 
 ## Key People
 
-- **[[Wren]]** — my wife
+- **[[Wren]]** — my spouse
 
 ## Pets
 

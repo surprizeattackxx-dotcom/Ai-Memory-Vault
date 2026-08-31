@@ -5,4 +5,4 @@ type: reference
 ---
 # Wren
 
-My wife. Partner in everything.
+My spouse. Partner in everything.

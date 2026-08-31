@@ -41,8 +41,8 @@ Structural files — exempt from index/orphan expectations:
 - [x] 02 - Projects/note-one.md
 - [x] 02 - Projects/note-two.md
 - [x] 07 - Personal/Milo.md
-- [x] 07 - Personal/Wren.md
 - [x] 07 - Personal/Personal.md
+- [x] 07 - Personal/Wren.md
 
 ## Skipped files
 

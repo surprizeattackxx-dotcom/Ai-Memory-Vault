@@ -9,12 +9,12 @@ A deterministic fixture vault built by tests/fixtures/vaults/build_fixtures.py.
 
 ## Who I Am
 
-I'm Rowan, 31, born March 14, 1994. I live in Fernbrook, Michigan. My wife is Wren.
+I'm Rowan, 31, born March 14, 1994. I live in Fernbrook, Ohio. My spouse is Wren.
 
 ## Key People
 
-- [[Wren]] — my wife
-- [[Milo]] — my son (Miles)
+- [[Wren]] — my spouse
+- [[Milo]] — my kid
 
 ## Projects
 

@@ -7,4 +7,4 @@ type: index
 
 Index for the personal folder.
 
-- [[Wren]] — the user's wife
+- [[Wren]] — the user's spouse

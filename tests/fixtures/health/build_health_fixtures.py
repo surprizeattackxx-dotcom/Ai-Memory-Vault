@@ -67,7 +67,7 @@ superseded_by: "[[note-two]]"
 The old fact, now superseded.
 """
 
-# Wren and Bash get IDENTICAL bodies so the rich fixture carries a latent
+# Wren and Milo get IDENTICAL bodies so the rich fixture carries a latent
 # duplicate cluster (DUP-LEXICAL-BODY info) for Level 3 duplicate coverage.
 MELENA_NOTE = bf.MELENA_NOTE
 BASH_NOTE = MELENA_NOTE
@@ -213,7 +213,7 @@ def fixture_h02_l3_duplicates_omitted():
             "- [x] partition complete; lifecycle/supersession enumerated\n"
             "- [ ] duplicate coverage omitted one cluster member (see ## Duplicate coverage)"
         ),
-        "notes": "Duplicate coverage below lists only one member of the Wren/Bash cluster; "
+        "notes": "Duplicate coverage below lists only one member of the Wren/Milo cluster; "
                  "the run moved on without comparing the other.",
         "l3_sections": {
             "Lifecycle coverage": ["02 - Projects/note-two.md", "02 - Projects/legacy-note.md"],

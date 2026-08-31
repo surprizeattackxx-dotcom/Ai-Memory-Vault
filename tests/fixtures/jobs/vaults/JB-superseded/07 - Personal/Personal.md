@@ -7,5 +7,5 @@ type: index
 
 ## Notes
 
-- [[Wren]] — my wife.
-- [[Milo]] — my son (Miles).
+- [[Wren]] — my spouse.
+- [[Milo]] — my kid.

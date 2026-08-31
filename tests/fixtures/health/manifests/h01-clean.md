@@ -32,8 +32,8 @@ Structural files — exempt from index/orphan expectations:
 - [x] 02 - Projects/Projects.md
 - [x] 02 - Projects/note-one.md
 - [x] 07 - Personal/Milo.md
-- [x] 07 - Personal/Wren.md
 - [x] 07 - Personal/Personal.md
+- [x] 07 - Personal/Wren.md
 - [x] 09 - Resources/MEMORY_PROTOCOL.md
 - [x] Active Priorities.md
 - [x] VAULT-INDEX.md

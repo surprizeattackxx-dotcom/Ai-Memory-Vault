@@ -11,8 +11,8 @@ contradicts the protocol - the index is simply behind.
 
 ## Key People
 
-- [[Wren]] — my wife
-- [[Milo]] — my son (Miles)
+- [[Wren]] — my spouse
+- [[Milo]] — my kid
 
 ## Projects
 

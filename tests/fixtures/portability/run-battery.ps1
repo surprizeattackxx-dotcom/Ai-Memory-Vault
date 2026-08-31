@@ -51,7 +51,7 @@ if ($Runs) {
   $selected = @($allRuns | Where-Object { $want -contains $_.id })
 }
 
-$claude = 'C:\Users\<user>\.local\bin\claude.exe'
+$claude = Join-Path $env:USERPROFILE '.local\bin\claude.exe'
 
 foreach ($r in $selected) {
   $work = Join-Path $root "$($r.variant)\work"

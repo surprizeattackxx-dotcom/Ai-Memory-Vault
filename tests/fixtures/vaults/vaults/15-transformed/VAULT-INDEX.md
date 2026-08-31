@@ -9,12 +9,12 @@ A deterministic fixture vault built by tests/fixtures/vaults/build_fixtures.py.
 
 ## About Me
 
-I'm Alex, 41, born March 2, 1984. I live in Ann Arbor, Michigan. My wife is Wren.
+I'm Jamie, 41, born March 2, 1984. I live in Rivergate, Illinois. My spouse is Wren.
 
 ## Key People
 
-- [[Wren]] — my wife
-- [[Milo]] — my son (Miles)
+- [[Wren]] — my spouse
+- [[Milo]] — my kid
 
 ## Projects
 
