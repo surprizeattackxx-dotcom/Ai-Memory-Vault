@@ -377,7 +377,7 @@ Two observations are independent only when they come from **meaningfully distinc
 
 Full-text and filename search can detect **lexical** overlap. They cannot guarantee **semantic** duplicate detection. "Prefers dark mode," "prefers dark themes," and "likes dark UI" may share no reliable keyword a simple search would catch, and can silently become three notes instead of one.
 
-**This is a known, accepted limitation, not a silent gap.** `HEALTH_CHECK`'s duplicate detection must describe itself as lexical/heuristic — never as exhaustive semantic deduplication — unless an acceleration layer capable of real semantic comparison is explicitly present (none ships with this system; see Source of truth). A report claiming duplicate-free status on the strength of a keyword search alone is a false completeness claim.
+**This is a known, accepted limitation, not a silent gap.** `HEALTH_CHECK`'s duplicate detection must describe itself as lexical/heuristic — never as exhaustive semantic deduplication. An optional semantic accelerator now ships with this system (`tools/embedding_index.py` + `tools/sentence_transformers_backend.py`, see `ACCELERATION_LAYER.md`), but it is retrieval-only, wired into `RETRIEVE`'s candidate-discovery phase — it is not consulted by `HEALTH_CHECK`'s duplicate detection, which remains lexical/heuristic exactly as described here. A report claiming duplicate-free status on the strength of a keyword search alone is a false completeness claim; that claim would be equally false if made on the strength of a semantic similarity score, since a high similarity score is retrieval ranking, never a validated fact about duplication.
 
 ---
 
